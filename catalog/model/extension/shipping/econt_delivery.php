@@ -1,8 +1,10 @@
 <?php
 
+/** @noinspection PhpUndefinedClassInspection */
+
 class ModelExtensionShippingEcontDelivery extends Model {
 
-    function getQuote($address) {
+    public function getQuote($address) {
         // TODO: kopie na flat.php kolkoto da ne se chupi saita
         $this->load->language('extension/shipping/flat');
 
@@ -40,4 +42,5 @@ class ModelExtensionShippingEcontDelivery extends Model {
 
         return $method_data;
     }
+
 }
