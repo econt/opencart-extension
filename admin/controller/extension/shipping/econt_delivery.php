@@ -13,8 +13,9 @@
  * @property Session $session
  * @property ModelLocalisationGeoZone $model_localisation_geo_zone
  * @property ModelSettingSetting $model_setting_setting
+ * @property ModelSettingEvent $model_setting_event
  * @property \Cart\User $user
- **/
+ */
 class ControllerExtensionShippingEcontDelivery extends Controller {
 
     private $error = array();
@@ -27,6 +28,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->load->model('extension/shipping/econt_delivery');
         $this->load->model('localisation/geo_zone');
         $this->load->model('setting/setting');
+        $this->load->model('setting/event');
     }
 
     public function index() {
@@ -85,11 +87,30 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     }
 
     public function install() {
-        // todo: dovaviane na eventi
+        $this->init();
+
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/testEventBefore');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/after', 'extension/shipping/econt_delivery/testEventAfter');
     }
 
     public function uninstall() {
-        // todo: premahvane na eventi
+        $this->init();
+
+        $this->model_setting_event->deleteEventByCode('econt_delivery');
+    }
+
+    // events
+    public function testEventBefore($eventRoute, &$data) {
+        // todo: tova onova ima li pratka nqma li pratka i prosledqvame
+        if (true) {
+            $data['shipping_method'] = 'Достави с Еконт (<a href="https://www.econt.com/services/track-shipment/1234" target="_blank">проследи пратка</a>)';
+        }
+        $x = 10;
+        $this->document->addScript('view/javascript/testEvent.js');
+    }
+    public function testEventAfter($eventRoute, &$data) {
+        $x = 10;
+        $this->document->addScript('view/javascript/testEvent.js');
     }
 
 }
