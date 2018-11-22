@@ -6,60 +6,47 @@
  * @property Loader $load
  * @property DB $db
  * @property Config $config
+ * @property Language $language
  */
 class ModelExtensionShippingEcontDelivery extends Model {
 
     public function getQuote($address) {
+        $geoZoneId = intval($this->config->get('shipping_econt_delivery_geo_zone_id'));
+        if ($geoZoneId !== 0) {
+            $result = $this->db->query(sprintf("
+                SELECT
+                    COUNT(z.zone_to_geo_zone_id) AS zoneIdsCount
+                FROM %s.%szone_to_geo_zone AS z
+                WHERE TRUE
+                    AND z.geo_zone_id = {$geoZoneId}
+                    AND z.country_id = %d
+                    AND z.zone_id IN (0, %d)
+                LIMIT 1
+            ",
+                DB_DATABASE,
+                DB_PREFIX,
+                $address['country_id'],
+                $address['zone_id']
+            ));
+            if (intval($result->row['zoneIdsCount']) <= 0) return array();
+        }
+
         $this->load->language('extension/shipping/econt_delivery');
-
-        $a = $this->config;
-
-        $query = $this->db->query("
-            SELECT
-                * 
-            FROM " . DB_PREFIX . "zone_to_geo_zone 
-            WHERE TRUE
-                AND geo_zone_id = '" . (int)$this->config->get('shipping_flat_geo_zone_id') . "'
-                AND country_id = '" . (int)$address['country_id'] . "'
-                AND (
-                        zone_id = '" . (int)$address['zone_id'] . "'
-                    OR  zone_id = '0'
+        return array(
+            'code' => 'econt_delivery',
+            'title' => $this->language->get('delivery_method_title'),
+            'quote' => array(
+                'econt_delivery' => array(
+                    'code' => 'econt_delivery.econt_delivery',
+                    'title' => $this->language->get('delivery_method_description'),
+                    'cost' => 0,
+                    'tax_class_id' => 0,
+                    'text' => $this->language->get('delivery_method_description_services')
                 )
-        ");
-
-        if (!$this->config->get('shipping_flat_geo_zone_id')) {
-            $status = true;
-        } elseif ($query->num_rows) {
-            $status = true;
-        } else {
-            $status = false;
-        }
-
-        $method_data = array();
-
-        if ($status) {
-            $quote_data = array();
-
-            $quote_data['flat'] = array(
-                'code'         => 'flat.flat',
-                'title'        => $this->language->get('text_description'),
-                'cost'         => $this->config->get('shipping_flat_cost'),
-                'tax_class_id' => $this->config->get('shipping_flat_tax_class_id'),
-                'text'         => $this->currency->format($this->tax->calculate($this->config->get('shipping_flat_cost'), $this->config->get('shipping_flat_tax_class_id'), $this->config->get('config_tax')), $this->session->data['currency'])
-            );
-
-            $method_data = array(
-                'code'       => 'flat',
-                'title'      => $this->language->get('text_title'),
-                'quote'      => $quote_data,
-                'sort_order' => $this->config->get('shipping_flat_sort_order'),
-                'error'      => false
-            );
-        }
-
-        // js
-
-        return $method_data;
+            ),
+            'sort_order' => intval($this->config->get('shipping_econt_delivery_sort_order')),
+            'error' => false
+        );
     }
 
 }
