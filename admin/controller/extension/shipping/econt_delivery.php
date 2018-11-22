@@ -88,9 +88,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
     public function install() {
         $this->init();
-
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/testEventBefore');
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/after', 'extension/shipping/econt_delivery/testEventAfter');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/trackShipment');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/controller/sale/order/shipping/before', 'extension/shipping/econt_delivery/printShipmentLabel');
     }
 
     public function uninstall() {
@@ -100,17 +99,15 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     }
 
     // events
-    public function testEventBefore($eventRoute, &$data) {
+    public function trackShipment(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
         // todo: tova onova ima li pratka nqma li pratka i prosledqvame
         if (true) {
             $data['shipping_method'] = 'Достави с Еконт (<a href="https://www.econt.com/services/track-shipment/1234" target="_blank">проследи пратка</a>)';
         }
-        $x = 10;
-        $this->document->addScript('view/javascript/testEvent.js');
     }
-    public function testEventAfter($eventRoute, &$data) {
-        $x = 10;
-        $this->document->addScript('view/javascript/testEvent.js');
+    public function printShipmentLabel(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
+        echo '<b>PDF</b>';
+        die();
     }
 
 }

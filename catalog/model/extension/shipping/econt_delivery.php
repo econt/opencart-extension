@@ -41,12 +41,16 @@ class ModelExtensionShippingEcontDelivery extends Model {
                     'title' => $this->language->get('delivery_method_description'),
                     'cost' => 0,
                     'tax_class_id' => 0,
-                    'text' => $this->language->get('delivery_method_description_services')
+                    'text' => $this->language->get('delivery_method_description_services') . $this->injectJs()
                 )
             ),
             'sort_order' => intval($this->config->get('shipping_econt_delivery_sort_order')),
             'error' => false
         );
     }
+
+    private function injectJs() { ?>
+
+    <?php }
 
 }
