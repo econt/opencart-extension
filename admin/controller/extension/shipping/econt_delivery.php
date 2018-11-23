@@ -15,11 +15,16 @@
  * @property ModelSettingSetting $model_setting_setting
  * @property ModelSettingEvent $model_setting_event
  * @property \Cart\User $user
+ * @property ModelAccountOrder $model_account_order
  */
 class ControllerExtensionShippingEcontDelivery extends Controller {
 
     private $error = array();
 
+    private $systemUrls = array(
+        'production' => 'https://delivery.econt.com',
+        'testing' => 'http://delivery.demo.econt.com'
+    );
     private $settingCode = 'shipping_econt_delivery';
 
     private function init() {
@@ -67,6 +72,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             )),
             'geo_zones' => $this->model_localisation_geo_zone->getGeoZones(),
             'settings' => $this->model_setting_setting->getSetting($this->settingCode),
+            'system_urls' => $this->systemUrls,
             'actions' => array(
                 'submit_url' => $this->url->link('extension/shipping/econt_delivery', http_build_query(array(
                     'user_token' => $this->session->data['user_token']
@@ -86,17 +92,21 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return empty($this->error);
     }
 
-    public function install() {
-        $this->init();
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/trackShipment');
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/controller/sale/order/shipping/before', 'extension/shipping/econt_delivery/printShipmentLabel');
-    }
 
+    public function install() {
+        $this->load->model('setting/event');
+
+        // admin
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/controller/sale/order/shipping/before', 'extension/shipping/econt_delivery/printShipmentLabel');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/trackShipment');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/updateOrder');
+    }
     public function uninstall() {
-        $this->init();
+        $this->load->model('setting/event');
 
         $this->model_setting_event->deleteEventByCode('econt_delivery');
     }
+
 
     // events
     public function trackShipment(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
@@ -104,6 +114,82 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         if (true) {
             $data['shipping_method'] = 'Достави с Еконт (<a href="https://www.econt.com/services/track-shipment/1234" target="_blank">проследи пратка</a>)';
         }
+    }
+    public function updateOrder(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
+        $this->language->load('extension/shipping/econt_delivery');
+
+        ob_start(); ?>
+            <style>
+                #econt-delivery-customer-info-modal iframe {
+                    border: 0;
+                    width: 100%;
+                    height: 608px;
+                }
+            </style>
+            <div id="econt-delivery-customer-info-modal" class="modal fade" role="dialog">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal">&times;</button>
+                            <h4 class="modal-title"><?=$this->language->get('heading_title')?></h4>
+                        </div>
+                        <div class="modal-body">
+                            <iframe src="//delivery.demo.econt.com/customer_info.php"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                $(function($) {
+                    var $shippingMethod = $('#input-shipping-method');
+                    var $customerInfoWindow = $('#econt-delivery-customer-info-modal').modal({
+                        'show': false,
+                        'backdrop': 'static'
+                    });
+
+                    var $customerInfoLink = $('<a></a>').attr({'href': '#', 'target': '_self'}).text('<?=$this->language->get('text_edit_customer_info')?>');
+                    $customerInfoLink.show = function() { $customerInfoLink.css({'display': 'inline-block'}); }
+                    $customerInfoLink.hide = function() { $customerInfoLink.css({'display': 'none'}); }
+                    $customerInfoLink.hide();
+                    $((((function($parent) { return ((parseInt($parent.length, 10) || 0) <= 0 ? false : $parent); })($shippingMethod.parents('.input-group')) || $shippingMethod).parent())).append($customerInfoLink);
+                    $customerInfoLink.click(function(event) {
+                        event.preventDefault();
+
+                        $.post('<?=HTTP_CATALOG?>index.php?<?=http_build_query(array(
+                            'route' => 'api/extension/econt_delivery/getCustomerInfoParams',
+                            'api_token' => $data['api_token'],
+                            'order_id' => $data['order_id']
+                        ))?>', {}, function(data) {
+                            if (data && data['error']) {
+                                alert(data['error']);
+                                console.error(data);
+                                return;
+                            }
+                            if (data && (!data['customer_info_url'] || data['customer_info_url'] == '')) {
+                                alert('Грешка');
+                                return;
+                            }
+                            $customerInfoWindow.find('iframe').attr('src', data['customer_info_url']);
+                            $customerInfoWindow.modal('show');
+                        }, 'json').fail(function(xhr, textStatus, errorThrown) {
+                            alert('<?=$this->language->get('text_default_error_message')?>');
+                            console.error(errorThrown);
+                        });
+                    });
+
+                    if ($shippingMethod.val() === 'econt_delivery.econt_delivery') $customerInfoLink.show();
+                    else $customerInfoLink.hide();
+                    $shippingMethod.change(function() {
+                        if ($(this).val() !== 'econt_delivery.econt_delivery') $customerInfoLink.hide();
+                        else {
+                            $customerInfoLink.click();
+                            $customerInfoLink.show();
+                        }
+                    });
+                });
+            </script>
+        <?php $data['footer'] = str_replace('</body>', sprintf('%s</body>', ob_get_contents()), $data['footer']);
+        ob_end_clean();
     }
     public function printShipmentLabel(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
         echo '<b>PDF</b>';

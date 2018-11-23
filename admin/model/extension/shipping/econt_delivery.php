@@ -1,15 +1,14 @@
 <?php
 
+/** @noinspection PhpUndefinedClassInspection */
+
+/**
+ * @property Session $session
+ */
 class ModelExtensionShippingEcontDelivery extends Model {
 
-    private $test = 'test';
-
-    public function getTest() {
-        return $this->test;
-    }
-
-    public function setTest($test) {
-        $this->test = $test;
+    public function getCustomerInfoParams() {
+        return $this->session->data['shipping_address'];
     }
 
 }
