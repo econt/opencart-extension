@@ -4,6 +4,7 @@
 
 /**
  * @property Language $language
+ * @property DB $db
  * @property Loader $load
  * @property ModelExtensionShippingEcontDelivery $model_extension_shipping_econt_delivery
  * @property Document $document
@@ -94,16 +95,26 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
 
     public function install() {
-        $this->load->model('setting/event');
+        $this->db->query(sprintf("
+            CREATE TABLE `%s`.`%secont_delivery_customer_info` (
+                `id_order` INT(11) NOT NULL DEFAULT '0',
+                `customer_info` MEDIUMTEXT NULL,
+                PRIMARY KEY (`id_order`)
+            )
+            COLLATE = 'utf8_general_ci'
+            ENGINE = InnoDB
+        ",
+            DB_DATABASE,
+            DB_PREFIX
+        ));
 
-        // admin
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/controller/sale/order/shipping/before', 'extension/shipping/econt_delivery/printShipmentLabel');
+        $this->load->model('setting/event');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/customerInfo');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/trackShipment');
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/updateOrder');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/controller/sale/order/shipping/before', 'extension/shipping/econt_delivery/printShipmentLabel');
     }
     public function uninstall() {
         $this->load->model('setting/event');
-
         $this->model_setting_event->deleteEventByCode('econt_delivery');
     }
 
@@ -115,8 +126,11 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             $data['shipping_method'] = 'Достави с Еконт (<a href="https://www.econt.com/services/track-shipment/1234" target="_blank">проследи пратка</a>)';
         }
     }
-    public function updateOrder(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
+    public function customerInfo(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
         $this->language->load('extension/shipping/econt_delivery');
+
+        $this->load->model('setting/setting');
+        $econtDeliverySettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
 
         ob_start(); ?>
             <style>
@@ -134,12 +148,15 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                             <h4 class="modal-title"><?=$this->language->get('heading_title')?></h4>
                         </div>
                         <div class="modal-body">
-                            <iframe src="//delivery.demo.econt.com/customer_info.php"></iframe>
+                            <iframe src="#"></iframe>
                         </div>
                     </div>
                 </div>
             </div>
             <script>
+                window.econtDeliver = {
+                    'systemUrl': '<?=$econtDeliverySettings['shipping_econt_delivery_system_url']?>'
+                };
                 $(function($) {
                     var $shippingMethod = $('#input-shipping-method');
                     var $customerInfoWindow = $('#econt-delivery-customer-info-modal').modal({
@@ -185,6 +202,20 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                             $customerInfoLink.click();
                             $customerInfoLink.show();
                         }
+                    });
+
+                    $('#button-shipping-method, #button-payment-method').click(function() {
+                        console.log('updatede na customer_info');
+                    });
+                    $(window).on('message',function(event){
+                        if (event['originalEvent']['origin'] != window.econtDeliver.systemUrl) return;
+
+                        var messageData = event['originalEvent']['data'];
+                        if (messageData && messageData['shipment_error']) alert(messageData['shipment_error']);
+
+
+                        aaa = messageData;
+                        console.log(messageData);
                     });
                 });
             </script>
