@@ -104,6 +104,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             DB_PREFIX
         ));
 
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/payment_method/save/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/shipping_method/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/customerInfo');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/trackShipment');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/controller/sale/order/shipping/before', 'extension/shipping/econt_delivery/printShipmentLabel');

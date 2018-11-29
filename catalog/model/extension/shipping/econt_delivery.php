@@ -31,8 +31,60 @@ class ModelExtensionShippingEcontDelivery extends Model {
             ));
             if (intval($result->row['zoneIdsCount']) <= 0) return array();
         }
-
         $this->load->language('extension/shipping/econt_delivery');
+        if($this->request->request['route'] == 'checkout/shipping_method') {
+            $frameParams = array(
+                'id_shop' => intval(@reset(explode('@',$this->config->get('shipping_econt_delivery_private_key')))),
+                'order_weight' => $this->cart->getWeight(),
+                'order_total' => $this->cart->getTotal(),
+                'order_currency' => $this->session->data['currency'],
+            );
+            $deliveryBaseURL = "https://delivery.econt.com";
+            $frameURL = $deliveryBaseURL.'/customer_info.php?'.http_build_query($frameParams,null,'&');
+            $deliveryMethodTxt = $this->language->get('delivery_method_description');
+            $deliveryMethodPriceCD = $this->language->get('delivery_method_description_cd');
+
+            ?>
+            <script>
+                (function($){
+                    var $econtRadio = $('input:radio[value=\'econt_delivery.econt_delivery\']');
+                    var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>').appendTo($econtRadio.parent().parent());
+                    $econtRadio.parent().contents().each(function(i,el){if(el.nodeType == 3) el.nodeValue = '';});//zabursvane na originalniq text
+                    var $econtLabelText = $('<span></span>').text(<?php echo json_encode($deliveryMethodTxt)?>);
+                    $econtRadio.after($econtLabelText);
+                    var shippingInfo = null;
+                    var $frame = null;
+                    $econtRadio.click(function(){
+                        $frame = $('<iframe style="width:100%;height:612px;border:none;margin-top: 15px;" src="<?php echo $frameURL?>"></iframe>');
+                        $econtRadio.parent().parent().append($frame)
+                    });
+                    $('input:radio[name=shipping_method]').change(function(){
+                        if(!$econtRadio.is(':checked')) $frame.remove();
+                    });
+                    if($econtRadio.is(':checked')) $econtRadio.trigger('click');
+                    $(window).unbind('message.econtShipping');
+                    $(window).bind('message.econtShipping',function(e){
+                        if(e.originalEvent.origin.indexOf('<?php echo $deliveryBaseURL?>') == 0) {
+                            if(e.originalEvent.data.shipment_error) {
+                                alert(e.originalEvent.data.shipment_error)
+                            } else {
+                                shippingInfo = e.originalEvent.data;
+                                $frame.remove();
+                                console.log(shippingInfo);
+                                var labelTxt = <?php echo json_encode($deliveryMethodTxt)?> + ' - ' + shippingInfo.shipping_price + shippingInfo.shipping_price_currency_sign;
+                                if(shippingInfo.shipping_price != shippingInfo.shipping_price_cod) {
+                                    labelTxt += ' (+ ' + (shippingInfo.shipping_price_cod - shippingInfo.shipping_price) + shippingInfo.shipping_price_currency_sign + ' ' + <?php echo json_encode($deliveryMethodPriceCD)?> + ')'
+                                }
+                                $econtLabelText.text(labelTxt);
+                                $hiddenTextArea.val(JSON.stringify(e.originalEvent.data));
+                            }
+                        }
+                    });
+                })(jQuery);
+            </script>
+            <?php
+        }
+
         return array(
             'code' => 'econt_delivery',
             'title' => $this->language->get('delivery_method_title'),
@@ -40,9 +92,9 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 'econt_delivery' => array(
                     'code' => 'econt_delivery.econt_delivery',
                     'title' => $this->language->get('delivery_method_description'),
-                    'cost' => floatval(($this->session->data['payment_method']['code'] === 'cod' ? $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'] : $this->session->data['econt_delivery']['customer_info']['shipping_price'])),
+                    'cost' => @floatval(($this->session->data['payment_method']['code'] === 'cod' ? $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'] : $this->session->data['econt_delivery']['customer_info']['shipping_price'])),
                     'tax_class_id' => 0,
-                    'text' => $this->language->get('delivery_method_description_services')
+                    'text' => 'qq'
                 )
             ),
             'sort_order' => intval($this->config->get('shipping_econt_delivery_sort_order')),

@@ -123,4 +123,16 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return json_decode($response, true);
     }
 
+    public function beforeCartSaveShipping() {
+        $this->session->data['econt_delivery']['customer_info'] = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']));
+    }
+
+    public function beforeCartSavePayment() {
+        if($this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
+            $cod = $this->request->request['payment_method'] == 'cod' ? '_cod' : '';
+            $this->session->data['shipping_method']['cost'] = $this->session->data['econt_delivery']['customer_info']['shipping_price'.$cod];
+
+            //save v DB za $this->session->data['order_id']
+        }
+    }
 }
