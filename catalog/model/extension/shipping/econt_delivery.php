@@ -7,6 +7,7 @@
  * @property DB $db
  * @property Config $config
  * @property Language $language
+ * @property Session $session
  */
 class ModelExtensionShippingEcontDelivery extends Model {
 
@@ -39,7 +40,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 'econt_delivery' => array(
                     'code' => 'econt_delivery.econt_delivery',
                     'title' => $this->language->get('delivery_method_description'),
-                    'cost' => 0,
+                    'cost' => floatval(($this->session->data['payment_method']['code'] === 'cod' ? $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'] : $this->session->data['econt_delivery']['customer_info']['shipping_price'])),
                     'tax_class_id' => 0,
                     'text' => $this->language->get('delivery_method_description_services')
                 )

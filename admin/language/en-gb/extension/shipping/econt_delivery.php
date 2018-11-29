@@ -30,3 +30,5 @@ $_['text_edit_customer_info'] = 'Редактирай данните за дос
 $_['text_edit_customer_info'] = 'Редактирай данните за доставка';
 
 $_['text_default_error_message'] = 'Възникна грешка моля свържете се с администратор';
+
+$_['empty_customer_info_url'] = 'Навалиден URL за Достави с Еконт';
