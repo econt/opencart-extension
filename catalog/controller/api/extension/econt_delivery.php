@@ -20,15 +20,15 @@ class ControllerApiExtensionEcontDelivery extends Controller {
         try {
             $this->load->language('extension/shipping/econt_delivery');
 
-            if (!isset($this->session->data['api_id'])) throw new Exception($this->language->get('catalog_controller_api_extension_econt_delivery_permission_error'));
+            if (!isset($this->session->data['api_id'])) throw new Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_permission_error'));
 
             $this->load->model('setting/setting');
             $econtDeliverySettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
 
             $separatorPos = strpos($econtDeliverySettings['shipping_econt_delivery_private_key'], '@');
-            if ($separatorPos === false) throw new Exception($this->language->get('catalog_controller_api_extension_econt_delivery_shop_id_error'));
+            if ($separatorPos === false) throw new Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_shop_id_error'));
             $shopId = substr($econtDeliverySettings['shipping_econt_delivery_private_key'], 0, $separatorPos);
-            if (intval($shopId) <= 0) throw new Exception($this->language->get('catalog_controller_api_extension_econt_delivery_shop_id_error'));
+            if (intval($shopId) <= 0) throw new Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_shop_id_error'));
 
             $totalPrice = 0;
             $totalWeight = 0;
@@ -61,7 +61,7 @@ class ControllerApiExtensionEcontDelivery extends Controller {
         $this->response->setOutput(json_encode($response));
     }
 
-    public function customerInfo() {
+    public function beforeApi() {
         $orderId = intval($this->request->get['order_id']);
         if ($this->request->get['action'] === 'updateCustomerInfo') {
             if ($orderId > 0) {
