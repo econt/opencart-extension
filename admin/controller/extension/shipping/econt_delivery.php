@@ -106,10 +106,11 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/payment_method/save/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/shipping_method/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/customerInfo');
+
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/customerInfoForm');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/trackShipment');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/controller/sale/order/shipping/before', 'extension/shipping/econt_delivery/printShipmentLabel');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/*/before', 'api/extension/econt_delivery/updateSessionCustomerInfo');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/*/before', 'api/extension/econt_delivery/customerInfo');
 
     }
     public function uninstall() {
