@@ -114,8 +114,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/beforeOrderForm');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/*/before', 'api/extension/econt_delivery/beforeApi');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterOrderHistory');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/beforeOrderInfo');
-
     }
     public function uninstall() {
         $this->load->model('setting/event');

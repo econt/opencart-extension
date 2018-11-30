@@ -19,7 +19,7 @@
  */
 class ControllerExtensionShippingEcontDelivery extends Controller {
 
-    public function updateOrder(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
+    public function afterOrderHistory(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
         $orderId = intval($this->request->get['order_id']);
         if ($orderId <= 0) {
             if ($this->request->get['route'] === 'api/order/add') {
