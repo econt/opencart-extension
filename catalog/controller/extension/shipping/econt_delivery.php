@@ -128,6 +128,13 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     }
     public function beforeCartSaveShipping() {
         if($this->request->request['shipping_method'] == 'econt_delivery.econt_delivery') {
+            $this->session->data['econt_delivery']['customer_info'] = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']),true);
+            if(!$this->session->data['econt_delivery']['customer_info']) {
+                $this->load->language('extension/shipping/econt_delivery');
+                $this->response->addHeader('Content-Type: application/json');
+                $this->response->setOutput(json_encode(array('error' => array('warning' => $this->language->get('err_missing_customer_info')))));
+                return false;
+            }
             $this->session->data['shipping_address']['firstname'] = $this->session->data['econt_delivery']['customer_info']['name'];
             $this->session->data['shipping_address']['lastname'] = '';
             $this->session->data['shipping_address']['iso_code_3'] = $this->session->data['econt_delivery']['customer_info']['country_code'];
@@ -139,9 +146,13 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             } else {
                 $this->session->data['shipping_address']['address_1'] = $this->session->data['econt_delivery']['customer_info']['address'];
             }
+        }
+    }
 
-            $this->session->data['econt_delivery']['customer_info'] = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']));
-            if (($orderId = intval($this->session->data['order_id'])) > 0) {
+    public function afterCheckoutConfirm() {
+        if($this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
+            if(empty($this->session->data['econt_delivery']['customer_info'])) throw new Exception;
+            if (($orderId = @intval($this->session->data['order_id'])) > 0) {
                 $this->db->query(sprintf("
                     INSERT INTO `%s`.`%secont_delivery_customer_info`
                     SET id_order = {$orderId},
@@ -161,8 +172,6 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         if($this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
             $cod = $this->request->request['payment_method'] == 'cod' ? '_cod' : '';
             $this->session->data['shipping_method']['cost'] = $this->session->data['econt_delivery']['customer_info']['shipping_price'.$cod];
-
-            //save v DB za
         }
     }
 }
