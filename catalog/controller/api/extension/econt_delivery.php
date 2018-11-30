@@ -49,7 +49,7 @@ class ControllerApiExtensionEcontDelivery extends Controller {
                 'customer_country' => $this->session->data['shipping_address']['iso_code_3'],
                 'customer_city_name' => $this->session->data['shipping_address']['city'],
                 'customer_post_code' => $this->session->data['shipping_address']['postcode'],
-                'customer_address' => $this->session->data['shipping_address']['address_1'],
+                'customer_address' => $this->session->data['shipping_address']['address_1'].' '.$this->session->data['shipping_address']['address_2'],
                 'ignore_history' => true,
                 'default_css' => true
             );
