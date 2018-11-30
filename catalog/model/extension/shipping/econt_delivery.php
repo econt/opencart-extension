@@ -33,11 +33,26 @@ class ModelExtensionShippingEcontDelivery extends Model {
         }
         $this->load->language('extension/shipping/econt_delivery');
         if($this->request->request['route'] == 'checkout/shipping_method') {
-            $frameParams = array(
+            if($this->cart->customer && $this->cart->customer->getEmail()) {
+                $email = $this->cart->customer->getEmail();
+                $phone = $this->cart->customer->getTelephone();
+            } else {
+                $email = $this->session->data['guest']['email'];
+                $phone = $this->session->data['guest']['telephone'];
+            }
+            @$frameParams = array(
                 'id_shop' => intval(@reset(explode('@',$this->config->get('shipping_econt_delivery_private_key')))),
                 'order_weight' => $this->cart->getWeight(),
                 'order_total' => $this->cart->getTotal(),
                 'order_currency' => $this->session->data['currency'],
+                'customer_company' => $this->session->data['shipping_address']['company'],
+                'customer_name' => "{$this->session->data['shipping_address']['firstname']} {$this->session->data['shipping_address']['lastname']}",
+                'customer_phone' =>  $phone,
+                'customer_email' => $email,
+                'customer_country' => $this->session->data['shipping_address']['iso_code_3'],
+                'customer_city_name' => $this->session->data['shipping_address']['city'],
+                'customer_post_code' => $this->session->data['shipping_address']['postcode'],
+                'customer_address' => $this->session->data['shipping_address']['address_1'].' '.$this->session->data['shipping_address']['address_2'],
             );
             $deliveryBaseURL = "https://delivery.econt.com";
             $frameURL = $deliveryBaseURL.'/customer_info.php?'.http_build_query($frameParams,null,'&');
@@ -55,11 +70,16 @@ class ModelExtensionShippingEcontDelivery extends Model {
                     var shippingInfo = null;
                     var $frame = null;
                     $econtRadio.click(function(){
-                        $frame = $('<iframe style="width:100%;height:612px;border:none;margin-top: 15px;" src="<?php echo $frameURL?>"></iframe>');
-                        $econtRadio.parent().parent().append($frame)
+                        if(!$frame) {
+                            $frame = $('<iframe style="width:100%;height:612px;border:none;margin-top: 15px;" src="<?php echo $frameURL?>"></iframe>');
+                            $econtRadio.parent().parent().append($frame);
+                        }
                     });
                     $('input:radio[name=shipping_method]').change(function(){
-                        if(!$econtRadio.is(':checked')) $frame.remove();
+                        if(!$econtRadio.is(':checked')) {
+                            $frame.remove();
+                            $frame = null;
+                        }
                     });
                     if($econtRadio.is(':checked')) $econtRadio.trigger('click');
                     $(window).unbind('message.econtShipping');
@@ -70,10 +90,11 @@ class ModelExtensionShippingEcontDelivery extends Model {
                             } else {
                                 shippingInfo = e.originalEvent.data;
                                 $frame.remove();
+                                $frame = null;
                                 console.log(shippingInfo);
                                 var labelTxt = <?php echo json_encode($deliveryMethodTxt)?> + ' - ' + shippingInfo.shipping_price + shippingInfo.shipping_price_currency_sign;
                                 if(shippingInfo.shipping_price != shippingInfo.shipping_price_cod) {
-                                    labelTxt += ' (+ ' + (shippingInfo.shipping_price_cod - shippingInfo.shipping_price) + shippingInfo.shipping_price_currency_sign + ' ' + <?php echo json_encode($deliveryMethodPriceCD)?> + ')'
+                                    labelTxt += ' (+ ' + (shippingInfo.shipping_price_cod - shippingInfo.shipping_price).toFixed(2) + shippingInfo.shipping_price_currency_sign + ' ' + <?php echo json_encode($deliveryMethodPriceCD)?> + ')'
                                 }
                                 $econtLabelText.text(labelTxt);
                                 $hiddenTextArea.val(JSON.stringify(e.originalEvent.data));

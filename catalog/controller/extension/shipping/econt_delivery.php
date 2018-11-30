@@ -123,8 +123,38 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return json_decode($response, true);
     }
 
+    public function afterViewCheckoutBilling($route,$templateParams,$html) {
+        return preg_replace("#<div (class=\"checkbox\">\\s+<label>\\s+<input\\s+type=\"checkbox\"\\s+name=\"shipping_address\")#i",'<div style="display:none !important;" \1',$html);
+    }
     public function beforeCartSaveShipping() {
-        $this->session->data['econt_delivery']['customer_info'] = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']));
+        if($this->request->request['shipping_method'] == 'econt_delivery.econt_delivery') {
+            $this->session->data['shipping_address']['firstname'] = $this->session->data['econt_delivery']['customer_info']['name'];
+            $this->session->data['shipping_address']['lastname'] = '';
+            $this->session->data['shipping_address']['iso_code_3'] = $this->session->data['econt_delivery']['customer_info']['country_code'];
+            $this->session->data['shipping_address']['city'] = $this->session->data['econt_delivery']['customer_info']['city_name'];
+            $this->session->data['shipping_address']['postcode'] = $this->session->data['econt_delivery']['customer_info']['post_code'];
+            if($this->session->data['econt_delivery']['customer_info']['office_code']) {
+                $this->session->data['shipping_address']['address_1'] = 'Econt office: '.$this->session->data['econt_delivery']['customer_info']['office_code'];
+                $this->session->data['shipping_address']['address_2'] = $this->session->data['econt_delivery']['customer_info']['address'];
+            } else {
+                $this->session->data['shipping_address']['address_1'] = $this->session->data['econt_delivery']['customer_info']['address'];
+            }
+
+            $this->session->data['econt_delivery']['customer_info'] = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']));
+            if (($orderId = intval($this->session->data['order_id'])) > 0) {
+                $this->db->query(sprintf("
+                    INSERT INTO `%s`.`%secont_delivery_customer_info`
+                    SET id_order = {$orderId},
+                        customer_info = '%s'
+                    ON DUPLICATE KEY UPDATE
+                        customer_info = VALUES(customer_info)
+                ",
+                    DB_DATABASE,
+                    DB_PREFIX,
+                    $this->db->escape(json_encode($this->session->data['econt_delivery']['customer_info']))
+                ));
+            }
+        }
     }
 
     public function beforeCartSavePayment() {
@@ -132,7 +162,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             $cod = $this->request->request['payment_method'] == 'cod' ? '_cod' : '';
             $this->session->data['shipping_method']['cost'] = $this->session->data['econt_delivery']['customer_info']['shipping_price'.$cod];
 
-            //save v DB za $this->session->data['order_id']
+            //save v DB za
         }
     }
 }
