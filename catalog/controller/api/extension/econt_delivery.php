@@ -61,7 +61,7 @@ class ControllerApiExtensionEcontDelivery extends Controller {
         $this->response->setOutput(json_encode($response));
     }
 
-    public function customerInfo() {
+    public function beforeApi() {
         $orderId = intval($this->request->get['order_id']);
         if ($this->request->get['action'] === 'updateCustomerInfo') {
             if ($orderId > 0) {

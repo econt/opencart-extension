@@ -32,3 +32,9 @@ $_['text_edit_customer_info'] = 'Редактирай данните за дос
 $_['text_default_error_message'] = 'Възникна грешка моля свържете се с администратор';
 
 $_['empty_customer_info_url'] = 'Навалиден URL за Достави с Еконт';
+
+$_['shipping_via_econt'] = 'Доставка чрез Еконт';
+$_['trace_shipping'] = 'проследи пратка';
+
+$_['text_invalid_order_id'] = 'Невалидно ID на поръчка';
+$_['text_invalid_shipping_method'] = 'Невалидно ID на поръчка';
