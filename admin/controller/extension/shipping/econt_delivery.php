@@ -232,7 +232,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                             }
 
                             if (window.econtDelivery.empty(response['customer_info_url'])) {
-                                alert('<?=$this->language->get('empty_customer_info_url')?>');
+                                alert('<?=$this->language->get('text_empty_customer_info_url')?>');
                                 return;
                             }
 
@@ -309,7 +309,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         $this->language->load('extension/shipping/econt_delivery');
 
-        $data['shipping_method'] = $this->language->get('shipping_via_econt');
+        $data['shipping_method'] = $this->language->get('text_shipping_via_econt');
 
         $this->load->model('setting/setting');
         $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
@@ -340,7 +340,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         if (!empty($data['econt_delivery_track_shipment_reponse']['shipmentNumber'])) {
             $data['shipping_method'] .= sprintf(' - №<a href="%s" target="_blank" data-toggle="tooltip" data-original-title="%s">%s</a>',
                 "{$this->systemUrls['trackShipmentUrl']}/{$data['econt_delivery_track_shipment_reponse']['shipmentNumber']}",
-                $this->language->get('trace_shipping'),
+                $this->language->get('text_trace_shipping'),
                 $data['econt_delivery_track_shipment_reponse']['shipmentNumber']
             );
             if (!empty($data['econt_delivery_track_shipment_reponse']['pdfURL'])) $data['shipping'] = $data['econt_delivery_track_shipment_reponse']['pdfURL'];

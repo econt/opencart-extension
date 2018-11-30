@@ -67,7 +67,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                 'id' => $customerInfo['id']
             ),
             'orderNumber' => $orderData['order_id'],
-            'shipmentDescription' => sprintf("{$orderData['store_name']} - %s #{$orderData['order_id']}", $this->language->get('econt_delivery_order')),
+            'shipmentDescription' => sprintf("{$orderData['store_name']} - %s #{$orderData['order_id']}", $this->language->get('text_econt_delivery_order')),
             'status' => $orderData['order_status'],
             'orderTime' => $orderData['date_added'],
             'currency' => $orderData['currency_code'],

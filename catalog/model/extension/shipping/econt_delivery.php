@@ -56,8 +56,8 @@ class ModelExtensionShippingEcontDelivery extends Model {
             );
             $deliveryBaseURL = "https://delivery.econt.com";
             $frameURL = $deliveryBaseURL.'/customer_info.php?'.http_build_query($frameParams,null,'&');
-            $deliveryMethodTxt = $this->language->get('delivery_method_description');
-            $deliveryMethodPriceCD = $this->language->get('delivery_method_description_cd');
+            $deliveryMethodTxt = $this->language->get('text_delivery_method_description');
+            $deliveryMethodPriceCD = $this->language->get('text_delivery_method_description_cd');
 
             ?>
             <script>
@@ -108,11 +108,11 @@ class ModelExtensionShippingEcontDelivery extends Model {
 
         return array(
             'code' => 'econt_delivery',
-            'title' => $this->language->get('delivery_method_title'),
+            'title' => $this->language->get('text_delivery_method_title'),
             'quote' => array(
                 'econt_delivery' => array(
                     'code' => 'econt_delivery.econt_delivery',
-                    'title' => $this->language->get('delivery_method_description'),
+                    'title' => $this->language->get('text_delivery_method_description'),
                     'cost' => @floatval(($this->session->data['payment_method']['code'] === 'cod' ? $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'] : $this->session->data['econt_delivery']['customer_info']['shipping_price'])),
                     'tax_class_id' => 0,
                     'text' => 'qq'
