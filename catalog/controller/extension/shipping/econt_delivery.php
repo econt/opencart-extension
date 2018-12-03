@@ -223,12 +223,12 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return false;
     }
 
-    public function beforeApi2() {
-        $this->beforeApi();
+    public function beforeApi() {
+        $this->loadEcontDeliveryData();
         return false;
     }
 
-    public function beforeApi() {
+    public function loadEcontDeliveryData() {
         $orderId = intval($this->request->get['order_id']);
         if ($this->request->get['action'] === 'updateCustomerInfo') {
             if ($orderId > 0) {

@@ -27,9 +27,9 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
     private $systemUrls = array(
         'production' => 'https://delivery.econt.com',
-        'testing' => 'http://delivery.demo.econt.com',
-        'trackShipmentUrl' => 'https://www.econt.com/services/track-shipment'
+        'testing' => 'http://delivery.demo.econt.com'
     );
+    private $trackShipmentUrl = 'https://www.econt.com/services/track-shipment';
 
     public function index() {
         $this->language->load('extension/shipping/econt_delivery');
@@ -114,8 +114,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/beforeOrderForm');
 
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/*/before', 'extension/shipping/econt_delivery/beforeApi');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_beforeApi2/before', 'extension/shipping/econt_delivery/beforeApi2');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/*/before', 'extension/shipping/econt_delivery/loadEcontDeliveryData');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_beforeApi/before', 'extension/shipping/econt_delivery/beforeApi');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_getCustomerInfoParams/before', 'extension/shipping/econt_delivery/getCustomerInfoParams');
 
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterOrderHistory');
@@ -344,7 +344,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         if (!empty($data['econt_delivery_track_shipment_reponse']['shipmentNumber'])) {
             $data['shipping_method'] .= sprintf(' - №<a href="%s" target="_blank" data-toggle="tooltip" data-original-title="%s">%s</a>',
-                "{$this->systemUrls['trackShipmentUrl']}/{$data['econt_delivery_track_shipment_reponse']['shipmentNumber']}",
+                "{$this->trackShipmentUrl}/{$data['econt_delivery_track_shipment_reponse']['shipmentNumber']}",
                 $this->language->get('text_trace_shipping'),
                 $data['econt_delivery_track_shipment_reponse']['shipmentNumber']
             );
