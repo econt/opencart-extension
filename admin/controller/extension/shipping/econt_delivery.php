@@ -261,7 +261,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                         }
 
                         $.post('<?=HTTP_CATALOG?>index.php?<?=http_build_query(array(
-                            'route' => 'api/shipping/econt_delivery_beforeApi2',
+                            'route' => 'extension/shipping/econt_delivery/beforeApi',
                             'api_token' => $data['api_token'],
                             'order_id' => $data['order_id'],
                             'action' => 'updateCustomerInfo'
