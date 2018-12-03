@@ -58,7 +58,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
 
             $this->load->model('setting/setting');
             $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
-            $deliveryBaseURL = $settings['shipping_econt_delivery_private_key'];
+            $deliveryBaseURL = $settings['shipping_econt_delivery_system_url'];
             $frameURL = $deliveryBaseURL.'/customer_info.php?'.http_build_query($frameParams,null,'&');
             $deliveryMethodTxt = $this->language->get('text_delivery_method_description');
             $deliveryMethodPriceCD = $this->language->get('text_delivery_method_description_cd');
