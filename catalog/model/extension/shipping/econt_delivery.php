@@ -8,6 +8,7 @@
  * @property Config $config
  * @property Language $language
  * @property Session $session
+ * @property ModelSettingSetting $model_setting_setting
  */
 class ModelExtensionShippingEcontDelivery extends Model {
 
@@ -54,7 +55,10 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 'customer_post_code' => $this->session->data['shipping_address']['postcode'],
                 'customer_address' => $this->session->data['shipping_address']['address_1'].' '.$this->session->data['shipping_address']['address_2'],
             );
-            $deliveryBaseURL = "https://delivery.econt.com";
+
+            $this->load->model('setting/setting');
+            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+            $deliveryBaseURL = $settings['shipping_econt_delivery_private_key'];
             $frameURL = $deliveryBaseURL.'/customer_info.php?'.http_build_query($frameParams,null,'&');
             $deliveryMethodTxt = $this->language->get('text_delivery_method_description');
             $deliveryMethodPriceCD = $this->language->get('text_delivery_method_description_cd');
