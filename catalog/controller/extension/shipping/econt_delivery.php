@@ -37,6 +37,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                     DB_PREFIX,
                     json_encode($this->session->data['econt_delivery']['customer_info'])
                 ));
+            } else {
+                if (!($orderId = intval($this->session->data['order_id']))) return;
             }
         }
 
