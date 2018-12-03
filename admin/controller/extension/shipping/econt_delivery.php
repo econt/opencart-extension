@@ -94,7 +94,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->load->model('setting/event');
 
         $this->db->query(sprintf("
-            CREATE TABLE `%s`.`%secont_delivery_customer_info` (
+            CREATE TABLE IF NOT EXISTS `%s`.`%secont_delivery_customer_info` (
                 `id_order` INT(11) NOT NULL DEFAULT '0',
                 `customer_info` MEDIUMTEXT NULL,
                 PRIMARY KEY (`id_order`)
@@ -113,7 +113,11 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/confirm/after', 'extension/shipping/econt_delivery/afterCheckoutConfirm');
 
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/beforeOrderForm');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/*/before', 'api/extension/econt_delivery/beforeApi');
+
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/*/before', 'extension/shipping/econt_delivery/beforeApi');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_beforeApi2/before', 'extension/shipping/econt_delivery/beforeApi2');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_getCustomerInfoParams/before', 'extension/shipping/econt_delivery/getCustomerInfoParams');
+
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterOrderHistory');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/beforeOrderInfo');
     }
@@ -223,7 +227,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                         event.preventDefault();
 
                         $.post('<?=HTTP_CATALOG?>index.php?<?=http_build_query(array(
-                            'route' => 'api/extension/econt_delivery/getCustomerInfoParams',
+                            'route' => 'api/shipping/econt_delivery_getCustomerInfoParams',
                             'api_token' => $data['api_token'],
                             'order_id' => $data['order_id']
                         ))?>', {}, function(response) {
@@ -257,7 +261,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                         }
 
                         $.post('<?=HTTP_CATALOG?>index.php?<?=http_build_query(array(
-                            'route' => 'api/extension/econt_delivery/beforeApi',
+                            'route' => 'api/shipping/econt_delivery_beforeApi2',
                             'api_token' => $data['api_token'],
                             'order_id' => $data['order_id'],
                             'action' => 'updateCustomerInfo'
