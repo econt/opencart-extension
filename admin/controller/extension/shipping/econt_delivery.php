@@ -196,7 +196,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                             <h4 class="modal-title"><?=$this->language->get('heading_title')?></h4>
                         </div>
                         <div class="modal-body">
-                            <iframe src="<?=$econtDeliverySettings['shipping_econt_delivery_system_url']?>"></iframe>
+                            <iframe src="about:blank"></iframe>
                         </div>
                     </div>
                 </div>
