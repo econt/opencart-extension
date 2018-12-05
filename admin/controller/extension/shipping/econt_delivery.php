@@ -389,8 +389,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                                     $createAwbWindow.modal('show');
                                     return;
                                 } else if (response && !window.econtDelivery.empty(response['pdfURL'])) {
-                                    window.location.href = window.location.href;
                                     window.open(response['pdfURL'], '_blank');
+                                    location.reload();
                                 } else {
                                     $createAwbWindow.find('.modal-body').html('<?=$this->language->get('text_default_error_message')?>')
                                     $createAwbWindow.modal('show');
