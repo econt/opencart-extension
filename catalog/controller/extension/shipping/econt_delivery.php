@@ -20,7 +20,7 @@
 class ControllerExtensionShippingEcontDelivery extends Controller {
 
     public function afterOrderHistory(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
-        $orderId = intval($this->request->get['order_id']);
+        $orderId = @intval($this->request->get['order_id']);
         if ($orderId <= 0) {
             if ($this->request->get['route'] === 'api/order/add') {
                 $orderId = intval(reset($data));
@@ -69,7 +69,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                 'id' => $customerInfo['id']
             ),
             'orderNumber' => $orderData['order_id'],
-            'shipmentDescription' => sprintf("{$orderData['store_name']} - %s #{$orderData['order_id']}", $this->language->get('text_econt_delivery_order')),
+            'shipmentDescription' => sprintf("%s #{$orderData['order_id']}", $this->language->get('text_econt_delivery_order')),
             'status' => $orderData['order_status'],
             'orderTime' => $orderData['date_added'],
             'currency' => $orderData['currency_code'],
@@ -79,6 +79,10 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         );
         $orderProducts = $this->model_checkout_order->getOrderProducts($orderId);
         if (!empty($orderProducts)) {
+            if (count($orderProducts) <= 1) {
+                $orderProduct = reset($orderProducts);
+                $order['shipmentDescription'] = $orderProduct['name'];
+            }
             $this->load->model('catalog/product');
             foreach ($orderProducts as $orderProduct) {
                 $productData = $this->model_catalog_product->getProduct($orderProduct['product_id']);
@@ -192,17 +196,10 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             $shopId = substr($econtDeliverySettings['shipping_econt_delivery_private_key'], 0, $separatorPos);
             if (intval($shopId) <= 0) throw new Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_shop_id_error'));
 
-            $totalPrice = 0;
-            $totalWeight = 0;
-            foreach ($this->cart->getProducts() as $product) {
-                $totalPrice += floatval($product['total']);
-                $totalWeight += floatval($product['weight']);
-            }
-
             $response['customer_info'] = array(
                 'id_shop' => $shopId,
-                'order_total' => $totalPrice,
-                'order_weight' => $totalWeight,
+                'order_total' => $this->cart->getTotal(),
+                'order_weight' => $this->cart->getWeight(),
                 'order_currency' => $this->session->data['currency'],
                 'customer_company' => $this->session->data['shipping_address']['company'],
                 'customer_name' => "{$this->session->data['shipping_address']['firstname']} {$this->session->data['shipping_address']['lastname']}",
