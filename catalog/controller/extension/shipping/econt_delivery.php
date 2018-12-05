@@ -200,15 +200,15 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                 'id_shop' => $shopId,
                 'order_total' => $this->cart->getTotal(),
                 'order_weight' => $this->cart->getWeight(),
-                'order_currency' => $this->session->data['currency'],
-                'customer_company' => $this->session->data['shipping_address']['company'],
-                'customer_name' => "{$this->session->data['shipping_address']['firstname']} {$this->session->data['shipping_address']['lastname']}",
-                'customer_phone' => $this->session->data['customer']['telephone'],
-                'customer_email' => $this->session->data['customer']['email'],
-                'customer_country' => $this->session->data['shipping_address']['iso_code_3'],
-                'customer_city_name' => $this->session->data['shipping_address']['city'],
-                'customer_post_code' => $this->session->data['shipping_address']['postcode'],
-                'customer_address' => $this->session->data['shipping_address']['address_1'].' '.$this->session->data['shipping_address']['address_2'],
+                'order_currency' => @$this->session->data['currency'],
+                'customer_company' => @$this->session->data['shipping_address']['company'],
+                'customer_name' => @$this->session->data['shipping_address']['firstname'] . ' ' . @$this->session->data['shipping_address']['lastname'],
+                'customer_phone' => @$this->session->data['customer']['telephone'],
+                'customer_email' => @$this->session->data['customer']['email'],
+                'customer_country' => @$this->session->data['shipping_address']['iso_code_3'],
+                'customer_city_name' => @$this->session->data['shipping_address']['city'],
+                'customer_post_code' => @$this->session->data['shipping_address']['postcode'],
+                'customer_address' => @$this->session->data['shipping_address']['address_1'] . ' ' . @$this->session->data['shipping_address']['address_2'],
                 'ignore_history' => true,
                 'default_css' => true
             );
@@ -228,8 +228,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     }
 
     public function loadEcontDeliveryData() {
-        $orderId = intval($this->request->get['order_id']);
-        if ($this->request->get['action'] === 'updateCustomerInfo') {
+        $orderId = @intval($this->request->get['order_id']);
+        if (@$this->request->get['action'] === 'updateCustomerInfo') {
             if ($orderId > 0) {
                 $this->db->query(sprintf("
                     INSERT INTO `%s`.`%secont_delivery_customer_info`
@@ -262,18 +262,18 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             }
         }
 
-        if (!isset($this->session->data['payment_method']) && in_array($this->request->post['payment_method'], $this->session->data['payment_methods'])) $this->session->data['payment_method'] = $this->session->data['payment_methods'][$this->request->post['payment_method']];
-        if (!isset($this->session->data['shipping_method']) && in_array($this->request->post['shipping_method'], $this->session->data['shipping_methods'])) $this->session->data['shipping_method'] = $this->session->data['shipping_methods'][$this->request->post['shipping_method']];
+        if (!@$this->session->data['payment_method'] && is_array(@$this->session->data['payment_methods']) && in_array(@$this->request->post['payment_method'], @$this->session->data['payment_methods'])) $this->session->data['payment_method'] = $this->session->data['payment_methods'][$this->request->post['payment_method']];
+        if (!@$this->session->data['shipping_method'] && is_array(@$this->session->data['shipping_methods']) && in_array(@$this->request->post['shipping_method'], @$this->session->data['shipping_methods'])) $this->session->data['shipping_method'] = $this->session->data['shipping_methods'][$this->request->post['shipping_method']];
 
-        if ($this->session->data['payment_method']['code'] === 'cod') $shippingCost = $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'];
-        else $shippingCost = $this->session->data['econt_delivery']['customer_info']['shipping_price'];
+        if (isset($this->session->data['payment_method']['code']) && $this->session->data['payment_method']['code'] === 'cod') $shippingCost = $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'];
+        else $shippingCost = @$this->session->data['econt_delivery']['customer_info']['shipping_price'];
         $shippingCost = floatval($shippingCost);
 
         if (isset($this->session->data['shipping_methods']['econt_delivery'])) $this->session->data['shipping_methods']['econt_delivery']['quote']['econt_delivery']['cost'] = $shippingCost;
         if (isset($this->session->data['shipping_method']) && $this->session->data['shipping_method']['code'] === 'econt_delivery.econt_delivery') $this->session->data['shipping_method']['cost'] = floatval($shippingCost);
 
         $this->response->addHeader('Content-Type: application/json');
-        $this->response->setOutput(json_encode($this->session->data['econt_delivery']['customer_info']));
+        $this->response->setOutput(json_encode(@$this->session->data['econt_delivery']['customer_info']));
     }
 
 }

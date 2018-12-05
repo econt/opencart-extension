@@ -261,7 +261,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                         }
 
                         $.post('<?=HTTP_CATALOG?>index.php?<?=http_build_query(array(
-                            'route' => 'extension/shipping/econt_delivery/beforeApi',
+                            'route' => 'api/shipping/econt_delivery_beforeApi',
                             'api_token' => $data['api_token'],
                             'order_id' => $data['order_id'],
                             'action' => 'updateCustomerInfo'
@@ -284,7 +284,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
                     var loadCustomerInfo = function(showWindow) {
                         $.post('<?=HTTP_CATALOG?>index.php?<?=http_build_query(array(
-                            'route' => 'api/extension/econt_delivery/beforeApi',
+                            'route' => 'api/shipping/econt_delivery_beforeApi',
                             'api_token' => $data['api_token'],
                             'order_id' => $data['order_id']
                         ))?>', {}, function(response) {

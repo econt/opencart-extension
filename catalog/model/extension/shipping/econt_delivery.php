@@ -9,6 +9,8 @@
  * @property Language $language
  * @property Session $session
  * @property ModelSettingSetting $model_setting_setting
+ * @property \Cart\Cart $cart
+ * @property ModelAccountOrder model_account_order
  */
 class ModelExtensionShippingEcontDelivery extends Model {
 
