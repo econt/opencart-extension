@@ -1,24 +1,21 @@
 <?php
 
-function remove($path) {
-    if (!is_dir($path)) {
-        return @unlink($path);
-    } else {
-        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST) as $dirContent) {
-            ($dirContent->isDir() && !$dirContent->isLink()) ? @rmdir($dirContent->getPathname()) : @unlink($dirContent->getPathname());
-        }
-        return @rmdir($path);
-    }
-}
-
-$ocmodZipPath = __DIR__ . DIRECTORY_SEPARATOR . 'econt_delivery.ocmod.zip';
-remove($ocmodZipPath);
-
-$uploadPath = __DIR__ . DIRECTORY_SEPARATOR . 'upload';
-remove($uploadPath);
-mkdir($uploadPath, 777, true);
-
-$files = array();
+define('BASE_URL', dirname(__FILE__));
+@unlink(BASE_URL . DIRECTORY_SEPARATOR . 'econt_delivery.ocmod.zip');
+$zip = new ZipArchive();
+if ($zip->open(BASE_URL . DIRECTORY_SEPARATOR . 'econt_delivery.ocmod.zip', ZipArchive::CREATE) !== true) die('error 1');
 foreach (new RegexIterator(new RecursiveIteratorIterator(new \RecursiveDirectoryIterator(__DIR__, \FilesystemIterator::SKIP_DOTS)), '/.*econt_delivery.*/i', RecursiveRegexIterator::GET_MATCH) as $file) {
-    var_dump($file);
+    $file = reset($file);
+    if (in_array(basename($file), ['econt_delivery_create_ocmod_zip.php', 'econt_delivery.ocmod.zip'])) continue;
+
+    $zip->addFile($file, DIRECTORY_SEPARATOR . 'upload' . str_replace(BASE_URL, '', $file));
 }
+$zip->addFromString(DIRECTORY_SEPARATOR . 'install.xml', "<?xml version=\"1.0\" encoding=\"utf-8\"?>
+<modification>
+    <code>econt_delivery_" . trim(`git rev-parse --short HEAD`) . "</code>
+    <name>Econt Delivery</name>
+    <version>1.0</version>
+    <author>Econt Express</author>
+    <link>https://delivery.econt.com</link>
+</modification>");
+$zip->close();
