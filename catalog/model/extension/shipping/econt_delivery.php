@@ -121,7 +121,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
                     'title' => $this->language->get('text_delivery_method_description'),
                     'cost' => @floatval(($this->session->data['payment_method']['code'] === 'cod' ? $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'] : $this->session->data['econt_delivery']['customer_info']['shipping_price'])),
                     'tax_class_id' => 0,
-                    'text' => 'qq'
+                    'text' => ''
                 )
             ),
             'sort_order' => intval($this->config->get('shipping_econt_delivery_sort_order')),

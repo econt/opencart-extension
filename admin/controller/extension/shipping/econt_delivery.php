@@ -112,14 +112,14 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/register/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/confirm/after', 'extension/shipping/econt_delivery/afterCheckoutConfirm');
 
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/beforeOrderForm');
-
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/*/before', 'extension/shipping/econt_delivery/loadEcontDeliveryData');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_beforeApi/before', 'extension/shipping/econt_delivery/beforeApi');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_getCustomerInfoParams/before', 'extension/shipping/econt_delivery/getCustomerInfoParams');
 
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterOrderHistory');
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/beforeOrderInfo');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderInfo');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderFrom');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterModelCheckoutOrderAddHistory');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/controller/sale/order/shipping/before', 'extension/shipping/econt_delivery/beforeAdminControllerSaleOrderShipping');
     }
     public function uninstall() {
         $this->load->model('setting/event');
@@ -173,7 +173,40 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return $response;
     }
 
-    public function beforeOrderForm(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
+    private function traceShipment($orderId) {
+        $orderId = intval($orderId);
+        if ($orderId <= 0) return array();
+
+        $this->load->model('setting/setting');
+        $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+
+        try {
+            $curl = curl_init();
+            curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/OrdersService.getTrace.json");
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                "Authorization: {$settings['shipping_econt_delivery_private_key']}"
+            ]);
+            curl_setopt($curl, CURLOPT_POST, true);
+            curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode(array(
+                'orderNumber' => $orderId
+            )));
+            curl_setopt($curl, CURLOPT_TIMEOUT, 6);
+            $response = json_decode(curl_exec($curl), true);
+            $responseInfo = curl_getinfo($curl);
+            if ($responseInfo['http_code'] !== 200) $response['error'] = $response;
+            curl_close($curl);
+        } catch (Exception $exception) {
+            $response['error'] = $exception;
+        }
+
+        return $response;
+    }
+
+    public function beforeAdminViewSaleOrderFrom(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
         $this->language->load('extension/shipping/econt_delivery');
 
         $this->load->model('setting/setting');
@@ -303,7 +336,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         <?php $data['footer'] = str_replace('</body>', sprintf('%s</body>', ob_get_contents()), $data['footer']);
         ob_end_clean();
     }
-    public function beforeOrderInfo(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
+    public function beforeAdminViewSaleOrderInfo(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
         $orderId = intval($this->request->get['order_id']);
         if ($orderId <= 0) return;
 
@@ -315,96 +348,63 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->language->load('extension/shipping/econt_delivery');
 
         $data['shipping_method'] = $this->language->get('text_shipping_via_econt');
+        $shipment = $this->traceShipment($orderId);
+        if (!empty($shipment['shipmentNumber'])) $data['shipping_method'] .= sprintf(' - №<a href="%s" target="_blank" data-toggle="tooltip" data-original-title="%s">%s</a>',
+            "{$this->trackShipmentUrl}/{$shipment['shipmentNumber']}",
+            $this->language->get('text_trace_shipping'),
+            $shipment['shipmentNumber']
+        );
+    }
+    public function beforeAdminControllerSaleOrderShipping(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
+        $orderId = intval($this->request->get['order_id']);
+        if ($orderId <= 0) return;
 
-        $this->load->model('setting/setting');
-        $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+        $this->load->model('sale/order');
+        $orderData = $this->model_sale_order->getOrder($orderId);
 
-        try {
-            $curl = curl_init();
-            curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/OrdersService.getTrace.json");
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($curl, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/json',
-                "Authorization: {$settings['shipping_econt_delivery_private_key']}"
-            ]);
-            curl_setopt($curl, CURLOPT_POST, true);
-            curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode(array(
-                'orderNumber' => $orderId
-            )));
-            curl_setopt($curl, CURLOPT_TIMEOUT, 6);
-            $data['econt_delivery_track_shipment_reponse'] = json_decode(curl_exec($curl), true);
-            $responseInfo = curl_getinfo($curl);
-            if ($responseInfo['http_code'] !== 200) $data['econt_delivery_track_shipment_reponse']['error'] = $data['econt_delivery_track_shipment_reponse'];
-            curl_close($curl);
-        } catch (Exception $exception) {
-            $data['econt_delivery_track_shipment_reponse']['error'] = $exception;
-        }
+        if ($orderData['shipping_code'] !== 'econt_delivery.econt_delivery') return;
 
-        if (!empty($data['econt_delivery_track_shipment_reponse']['shipmentNumber'])) {
-            $data['shipping_method'] .= sprintf(' - №<a href="%s" target="_blank" data-toggle="tooltip" data-original-title="%s">%s</a>',
-                "{$this->trackShipmentUrl}/{$data['econt_delivery_track_shipment_reponse']['shipmentNumber']}",
-                $this->language->get('text_trace_shipping'),
-                $data['econt_delivery_track_shipment_reponse']['shipmentNumber']
-            );
-            if (!empty($data['econt_delivery_track_shipment_reponse']['pdfURL'])) $data['shipping'] = $data['econt_delivery_track_shipment_reponse']['pdfURL'];
+        $shipment = $this->traceShipment($orderId);
+        if (!empty($shipment['shipmentNumber']) && !empty($shipment['pdfURL'])) {
+            header('Content-Type: application/pdf; charset=utf-8');
+            echo file_get_contents($shipment['pdfURL'], null, stream_context_create(array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false))));
+
+            return false;
         } else {
-            $data['shipping'] = '#econt_delivery_create_awb';
-            ob_start(); ?>
-                <div id="econt-delivery-create-awb-modal" class="modal fade" role="dialog">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                                <h4 class="modal-title"><?=$this->language->get('heading_title')?></h4>
-                            </div>
-                            <div class="modal-body"></div>
-                        </div>
-                    </div>
-                </div>
-                <script>
-                    window.econtDelivery = {
-                        empty: function(thingy) {
-                            return thingy == 0 || !thingy || (typeof(thingy) === 'object' && $.isEmptyObject(thingy));
-                        }
-                    };
-                    $(function($) {
-                        var $createAwbWindow = $('#econt-delivery-create-awb-modal').modal({
-                            'show': false,
-                            'backdrop': 'static'
-                        });
+            $this->load->model('setting/setting');
+            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
 
-                        $('[href=#econt_delivery_create_awb]').click(function(event) {
-                            event.preventDefault();
-                            event.stopPropagation();
+            try {
+                $curl = curl_init();
+                curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/OrdersService.createAWB.json");
+                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+                curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json',
+                    "Authorization: {$settings['shipping_econt_delivery_private_key']}"
+                ]);
+                curl_setopt($curl, CURLOPT_POST, true);
+                curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode(array(
+                    'orderNumber' => $orderId
+                )));
+                curl_setopt($curl, CURLOPT_TIMEOUT, 6);
+                $response = json_decode(curl_exec($curl), true);
+                $responseInfo = curl_getinfo($curl);
+                if ($responseInfo['http_code'] !== 200) throw new Exception($response['message']);
+                curl_close($curl);
+            } catch (Exception $exception) {
+                echo $exception->getMessage();
 
-                            $.post('index.php?<?=http_build_query(array(
-                                'route' => 'extension/shipping/econt_delivery/createAwb',
-                                'user_token' => $data['user_token'],
-                                'order_id' => $data['order_id']
-                            ))?>', {}, function(response) {
-                                if (response && response['error'] && !window.econtDelivery.empty(response['error']['message'])) {
-                                    $createAwbWindow.find('.modal-body').html(response['error']['message'])
-                                    $createAwbWindow.modal('show');
-                                    return;
-                                } else if (response && !window.econtDelivery.empty(response['pdfURL'])) {
-                                    window.open(response['pdfURL'], '_blank');
-                                    location.reload();
-                                } else {
-                                    $createAwbWindow.find('.modal-body').html('<?=$this->language->get('text_default_error_message')?>')
-                                    $createAwbWindow.modal('show');
-                                }
-                            }, 'json').fail(function(xhr, textStatus, errorThrown) {
-                                alert('<?=$this->language->get('text_default_error_message')?>');
-                                console.error(errorThrown);
-                            });
-                        });
-                    });
-                </script>
-            <?php $data['footer'] = str_replace('</body>', sprintf('%s</body>', ob_get_contents()), $data['footer']);
-            ob_end_clean();
+                return false;
+            }
+
+            if (!empty($response['shipmentNumber']) && !empty($response['pdfURL'])) {
+                header('Content-Type: application/pdf; charset=utf-8');
+                echo file_get_contents($response['pdfURL'], null, stream_context_create(array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false))));
+
+                return false;
+            }
         }
     }
-
 }

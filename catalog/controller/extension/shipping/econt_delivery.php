@@ -19,7 +19,7 @@
  */
 class ControllerExtensionShippingEcontDelivery extends Controller {
 
-    public function afterOrderHistory(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
+    public function afterModelCheckoutOrderAddHistory(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
         $orderId = @intval($this->request->get['order_id']);
         if ($orderId <= 0) {
             if ($this->request->get['route'] === 'api/order/add') {
@@ -226,7 +226,6 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->loadEcontDeliveryData();
         return false;
     }
-
     public function loadEcontDeliveryData() {
         $orderId = @intval($this->request->get['order_id']);
         if (@$this->request->get['action'] === 'updateCustomerInfo') {

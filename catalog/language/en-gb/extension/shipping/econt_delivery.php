@@ -6,5 +6,6 @@ $_['text_delivery_method_description_cd'] = 'наложен платеж';
 $_['text_catalog_controller_api_extension_econt_delivery_permission_error'] = 'Нямате достъп до ресурса';
 $_['text_catalog_controller_api_extension_econt_delivery_shop_id_error'] = 'Възникана грешка при извличане на "Код за сигурност" от настройките на модула';
 $_['text_econt_delivery_order'] = 'Поръчка';
+$_['text_cod_label'] = 'наложен платеж)';
 
 $_['err_missing_customer_info'] = 'Моля уточнете данните за доставката';
