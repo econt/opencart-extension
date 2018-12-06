@@ -127,52 +127,6 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->model_setting_event->deleteEventByCode('econt_delivery');
     }
 
-    public function createAwb() {
-        $response = array();
-        try {
-            $this->language->load('extension/shipping/econt_delivery');
-
-            $orderId = intval($this->request->get['order_id']);
-            if ($orderId <= 0) throw new Exception($this->language->get('text_invalid_order_id'));
-
-            $this->load->model('sale/order');
-            $orderData = $this->model_sale_order->getOrder($orderId);
-            if ($orderData['shipping_code'] !== 'econt_delivery.econt_delivery') throw new Exception($this->language->get('text_invalid_shipping_method'));
-
-            $this->load->model('setting/setting');
-            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
-
-            $curl = curl_init();
-            curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/OrdersService.createAWB.json");
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($curl, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/json',
-                "Authorization: {$settings['shipping_econt_delivery_private_key']}"
-            ]);
-            curl_setopt($curl, CURLOPT_POST, true);
-            curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode(array(
-                'orderNumber' => $orderId
-            )));
-            curl_setopt($curl, CURLOPT_TIMEOUT, 6);
-            $response = json_decode(curl_exec($curl), true);
-            $responseInfo = curl_getinfo($curl);
-            if ($responseInfo['http_code'] !== 200) throw new Exception($response['message']);
-            curl_close($curl);
-        } catch (Exception $exception) {
-            $response['error'] = array(
-                'code' => $exception->getCode(),
-                'message' => $exception->getMessage()
-            );
-        }
-        if (strpos($this->request->server['HTTP_ACCEPT'], 'application/json') !== false) {
-            $this->response->addHeader('Content-Type: application/json');
-            $this->response->setOutput(json_encode($response));
-        }
-        return $response;
-    }
-
     private function traceShipment($orderId) {
         $orderId = intval($orderId);
         if ($orderId <= 0) return array();
