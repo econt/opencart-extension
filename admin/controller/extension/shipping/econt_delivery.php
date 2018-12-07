@@ -348,6 +348,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                 if ($responseInfo['http_code'] !== 200) throw new Exception($response['message']);
                 curl_close($curl);
             } catch (Exception $exception) {
+                header('Content-type: text/html; charset=utf-8');
                 echo $exception->getMessage();
 
                 return false;
