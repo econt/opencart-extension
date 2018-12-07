@@ -95,7 +95,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                         'product_id' => $productData['product_id']
                     )), true),
                     'count' => $orderProduct['quantity'],
-                    'totalPrice' => $orderProduct['total'],
+                    'totalPrice' => floatval($orderProduct['total']) + floatval($orderProduct['tax']),
                     'totalWeight' => floatval($productData['weight'] * $orderProduct['quantity'])
                 );
             }
@@ -196,9 +196,11 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             $shopId = substr($econtDeliverySettings['shipping_econt_delivery_private_key'], 0, $separatorPos);
             if (intval($shopId) <= 0) throw new Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_shop_id_error'));
 
+            $total = floatval($this->cart->getTotal());
+            foreach ($this->cart->getTaxes() as $tax) $total += floatval($tax);
             $response['customer_info'] = array(
                 'id_shop' => $shopId,
-                'order_total' => $this->cart->getTotal(),
+                'order_total' => $total,
                 'order_weight' => $this->cart->getWeight(),
                 'order_currency' => @$this->session->data['currency'],
                 'customer_company' => @$this->session->data['shipping_address']['company'],
