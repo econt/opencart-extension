@@ -95,7 +95,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                         'product_id' => $productData['product_id']
                     )), true),
                     'count' => $orderProduct['quantity'],
-                    'totalPrice' => floatval($orderProduct['total']) + floatval($orderProduct['tax']),
+                    'totalPrice' => floatval($orderProduct['total']) + (floatval($orderProduct['tax']) * intval($orderProduct['quantity'])),
                     'totalWeight' => floatval($productData['weight'] * $orderProduct['quantity'])
                 );
             }
