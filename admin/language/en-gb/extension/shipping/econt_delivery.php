@@ -1,25 +1,25 @@
 <?php
 
-$_['heading_title'] = 'Достави с Еконт';
+$_['heading_title'] = 'Econt Delivery';
 
-$_['text_extensions'] = 'Разширения';
-$_['text_edit_econt_delivery_settings'] = 'Редактирай Достави с Еконт';
-$_['text_system_url_production'] = 'Реална';
-$_['text_system_url_testing'] = 'Тестова';
-$_['text_system_urls'] = 'Моля, изберете среда';
-$_['text_status'] = 'Статус';
-$_['text_status_enabled'] = 'Позволено';
-$_['text_status_disabled'] = 'Забранено';
-$_['text_sort_order'] = 'Сортиране';
-$_['text_sort_order_placeholder'] = 'Последователност в колоната';
-$_['text_private_key'] = 'Код за свързване';
-$_['text_geo_zone'] = 'Гео зона';
-$_['text_geo_zone_all_zones'] = '-- Всички --';
-$_['text_success_setting_update'] = 'Данните за Достави с Еконт са обновени успешно';
-$_['text_edit_customer_info'] = 'Редактирай данните за доставка';
-$_['text_default_error_message'] = 'Възникна грешка моля свържете се с администратор';
-$_['text_empty_customer_info_url'] = 'Навалиден URL за Достави с Еконт';
-$_['text_shipping_via_econt'] = 'Доставка чрез Еконт';
-$_['text_trace_shipping'] = 'проследи пратка';
-$_['text_invalid_order_id'] = 'Невалидно ID на поръчка';
-$_['text_invalid_shipping_method'] = 'Невалидно ID на поръчка';
+$_['text_extensions'] = 'Extensions';
+$_['text_edit_econt_delivery_settings'] = 'Edit Econt Delivery';
+$_['text_system_url_production'] = 'Production';
+$_['text_system_url_testing'] = 'Test';
+$_['text_system_urls'] = 'Please, choose environment';
+$_['text_status'] = 'Status';
+$_['text_status_enabled'] = 'Enabled';
+$_['text_status_disabled'] = 'Disabled';
+$_['text_sort_order'] = 'Sort';
+$_['text_sort_order_placeholder'] = 'Sort order';
+$_['text_private_key'] = 'Connection code';
+$_['text_geo_zone'] = 'Geo Zone';
+$_['text_geo_zone_all_zones'] = '-- All --';
+$_['text_success_setting_update'] = 'Data successfully updated!';
+$_['text_edit_customer_info'] = 'Edit delivery data';
+$_['text_default_error_message'] = 'Error. Please, contact administrator.';
+$_['text_empty_customer_info_url'] = 'Invalid URL for Econt Delivery!';
+$_['text_shipping_via_econt'] = 'Econt Delivery';
+$_['text_trace_shipping'] = 'Track and trace shipment';
+$_['text_invalid_order_id'] = 'Invalid Order ID!';
+$_['text_invalid_shipping_method'] = 'Invalid Order ID';
