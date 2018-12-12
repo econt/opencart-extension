@@ -311,21 +311,38 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         );
     }
     public function afterAdminModelSaleOrderGetOrder(/** @noinspection PhpUnusedParameterInspection */ &$eventRoute, &$data, &$returnData) {
+        $orderId = $returnData['order_id'];
+        if ($orderId <= 0) return;
+
+        $customerInfo = $this->db->query(sprintf("
+            SELECT
+                ci.customer_info AS customerInfo
+            FROM `%s`.`%secont_delivery_customer_info` AS ci
+            WHERE TRUE
+                AND ci.id_order = {$orderId}
+            LIMIT 1
+        ",
+            DB_DATABASE,
+            DB_PREFIX
+        ));
+        $customerInfo = json_decode($customerInfo->row['customerInfo'], true);
+        if (!$customerInfo) return;
+
         if (
                 $returnData['shipping_code'] === 'econt_delivery.econt_delivery'
             &&  (
                     @empty($returnData['shipping_firstname'])
                 ||  @empty($returnData['shipping_lastname'])
             )
-            &&  @!empty($this->session->data['econt_delivery']['customer_info'])
+            &&  @!empty($customerInfo)
         ) {
             $shippingName = '';
-            if (@!empty($this->session->data['econt_delivery']['customer_info']['name']) && @!empty($this->session->data['econt_delivery']['customer_info']['face'])) {
-                $shippingName = $this->session->data['econt_delivery']['customer_info']['face'];
-            } elseif (@!empty($this->session->data['econt_delivery']['customer_info']['name']) && @empty($this->session->data['econt_delivery']['customer_info']['face'])) {
-                $shippingName = $this->session->data['econt_delivery']['customer_info']['name'];
-            } elseif (@empty($this->session->data['econt_delivery']['customer_info']['name']) && @!empty($this->session->data['econt_delivery']['customer_info']['face'])) {
-                $shippingName = $this->session->data['econt_delivery']['customer_info']['face'];
+            if (@!empty($customerInfo['name']) && @!empty($customerInfo['face'])) {
+                $shippingName = $customerInfo['face'];
+            } elseif (@!empty($customerInfo['name']) && @empty($customerInfo['face'])) {
+                $shippingName = $customerInfo['name'];
+            } elseif (@empty($customerInfo['name']) && @!empty($customerInfo['face'])) {
+                $shippingName = $customerInfo['face'];
             }
             if (!empty($shippingName)) {
                 $shippingNameParts = explode(' ', trim($shippingName));
