@@ -312,9 +312,9 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     }
     public function afterAdminModelSaleOrderGetOrder(/** @noinspection PhpUnusedParameterInspection */ &$eventRoute, &$data, &$returnData) {
         if (
-            $returnData['shipping_code'] === 'econt_delivery.econt_delivery'
+                $returnData['shipping_code'] === 'econt_delivery.econt_delivery'
             &&  (
-                @empty($returnData['shipping_firstname'])
+                    @empty($returnData['shipping_firstname'])
                 ||  @empty($returnData['shipping_lastname'])
             )
             &&  @!empty($this->session->data['econt_delivery']['customer_info'])
