@@ -119,6 +119,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderInfo');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderFrom');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterModelCheckoutOrderAddHistory');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/model/sale/order/getOrder/after', 'extension/shipping/econt_delivery/afterAdminModelSaleOrderGetOrder');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/controller/sale/order/shipping/before', 'extension/shipping/econt_delivery/beforeAdminControllerSaleOrderShipping');
     }
     public function uninstall() {
@@ -308,6 +309,32 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             $this->language->get('text_trace_shipping'),
             $shipment['shipmentNumber']
         );
+    }
+    public function afterAdminModelSaleOrderGetOrder(/** @noinspection PhpUnusedParameterInspection */ &$eventRoute, &$data, &$returnData) {
+        if (
+            $returnData['shipping_code'] === 'econt_delivery.econt_delivery'
+            &&  (
+                @empty($returnData['shipping_firstname'])
+                ||  @empty($returnData['shipping_lastname'])
+            )
+            &&  @!empty($this->session->data['econt_delivery']['customer_info'])
+        ) {
+            $shippingName = '';
+            if (@!empty($this->session->data['econt_delivery']['customer_info']['name']) && @!empty($this->session->data['econt_delivery']['customer_info']['face'])) {
+                $shippingName = $this->session->data['econt_delivery']['customer_info']['face'];
+            } elseif (@!empty($this->session->data['econt_delivery']['customer_info']['name']) && @empty($this->session->data['econt_delivery']['customer_info']['face'])) {
+                $shippingName = $this->session->data['econt_delivery']['customer_info']['name'];
+            } elseif (@empty($this->session->data['econt_delivery']['customer_info']['name']) && @!empty($this->session->data['econt_delivery']['customer_info']['face'])) {
+                $shippingName = $this->session->data['econt_delivery']['customer_info']['face'];
+            }
+            if (!empty($shippingName)) {
+                $shippingNameParts = explode(' ', trim($shippingName));
+                if (!empty($shippingNameParts)) {
+                    $returnData['shipping_firstname'] = reset($shippingNameParts);
+                    $returnData['shipping_lastname'] = end($shippingNameParts);
+                }
+            }
+        }
     }
     public function beforeAdminControllerSaleOrderShipping(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
         $orderId = intval($this->request->get['order_id']);
