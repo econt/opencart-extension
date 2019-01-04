@@ -326,7 +326,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                     #econt-delivery-create-label-modal iframe {
                         border: 0;
                         width: 100%;
-                        height: 258px;
+                        height: 280px;
                     }
                 </style>
                 <div id="econt-delivery-create-label-modal" class="modal fade" role="dialog">
