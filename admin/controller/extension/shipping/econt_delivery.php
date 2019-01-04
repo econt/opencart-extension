@@ -120,7 +120,6 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderFrom');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterModelCheckoutOrderAddHistory');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/model/sale/order/getOrder/after', 'extension/shipping/econt_delivery/afterAdminModelSaleOrderGetOrder');
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/controller/sale/order/shipping/before', 'extension/shipping/econt_delivery/beforeAdminControllerSaleOrderShipping');
     }
     public function uninstall() {
         $this->load->model('setting/event');
@@ -190,7 +189,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                 </div>
             </div>
             <script>
-                window.econtDelivery = {
+                window.econtDelivery = window.econtDelivery || {
                     empty: function(thingy) {
                         return thingy == 0 || !thingy || (typeof(thingy) === 'object' && $.isEmptyObject(thingy));
                     },
@@ -236,7 +235,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                             console.error(errorThrown);
                         });
                     });
-                    $(window).on('message',function(event){
+                    $(window).on('message', function(event){
                         if (event['originalEvent']['origin'] != window.econtDelivery.systemUrl) return;
 
                         var messageData = event['originalEvent']['data'];
@@ -304,11 +303,89 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         $data['shipping_method'] = $this->language->get('text_shipping_via_econt');
         $shipment = $this->traceShipment($orderId);
-        if (!empty($shipment['shipmentNumber'])) $data['shipping_method'] .= sprintf(' - №<a href="%s" target="_blank" data-toggle="tooltip" data-original-title="%s">%s</a>',
-            "{$this->trackShipmentUrl}/{$shipment['shipmentNumber']}",
-            $this->language->get('text_trace_shipping'),
-            $shipment['shipmentNumber']
-        );
+        if (!empty($shipment['shipmentNumber'])) {
+            $data['shipping_method'] .= sprintf(' - №<a href="%s" target="_blank" data-toggle="tooltip" data-original-title="%s">%s</a>',
+                "{$this->trackShipmentUrl}/{$shipment['shipmentNumber']}",
+                $this->language->get('text_trace_shipping'),
+                $shipment['shipmentNumber']
+            );
+            if (!empty($shipment['pdfURL'])) $data['shipping'] = $shipment['pdfURL'];
+        } else {
+            $this->load->model('setting/setting');
+            $econtDeliverySettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+
+            $data['shipping'] = '#open_econt_delivery_create_label_window';
+            ob_start(); ?>
+                <style>
+                    #econt-delivery-create-label-modal .modal-dialog {
+                        width: 520px;
+                    }
+                    #econt-delivery-create-label-modal .modal-body {
+                        padding: 0;
+                    }
+                    #econt-delivery-create-label-modal iframe {
+                        border: 0;
+                        width: 100%;
+                        height: 258px;
+                    }
+                </style>
+                <div id="econt-delivery-create-label-modal" class="modal fade" role="dialog">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                <h4 class="modal-title"><?=$this->language->get('heading_title')?></h4>
+                            </div>
+                            <div class="modal-body">
+                                <iframe src="about:blank"></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <script>
+                    window.econtDelivery = window.econtDelivery || {
+                        empty: function(thingy) {
+                            return thingy == 0 || !thingy || (typeof(thingy) === 'object' && $.isEmptyObject(thingy));
+                        },
+
+                        orderId: <?=json_encode($orderId)?>
+                    };
+                    $(function($) {
+                        var $createLabelWindow = $('#econt-delivery-create-label-modal').modal({
+                            'show': false,
+                            'backdrop': 'static'
+                        });
+                        $('a[href="#open_econt_delivery_create_label_window"]').click(function(event) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            $createLabelWindow.find('iframe').attr('src', '<?=$econtDeliverySettings['shipping_econt_delivery_system_url'] . '/create_label.php?'. http_build_query(array(
+                                'order_number' => $orderId,
+                                'token' => $econtDeliverySettings['shipping_econt_delivery_private_key']
+                            ))?>');
+                            $createLabelWindow.modal('show');
+                        });
+                        $(window).on('message', function(event){
+                            if (event['originalEvent']['origin'] != '<?=$econtDeliverySettings['shipping_econt_delivery_system_url']?>') return;
+
+                            var messageData = event['originalEvent']['data'];
+                            if (!messageData) return;
+
+                            switch (messageData['event']) {
+                                case 'cancel':
+                                    $createLabelWindow.modal('hide');
+                                    break;
+                                case 'confirm':
+                                    if (messageData['printPdf'] === true && !window.econtDelivery.empty(messageData['shipmentStatus']['pdfURL'])) window.open(messageData['shipmentStatus']['pdfURL'], '_blank');
+                                    window.location.href = window.location.href;
+                                    break;
+                            }
+                        });
+                    });
+                </script>
+            <?php $data['footer'] = str_replace('</body>', sprintf('%s</body>', ob_get_contents()), $data['footer']);
+            ob_end_clean();
+        }
     }
     public function afterAdminModelSaleOrderGetOrder(/** @noinspection PhpUnusedParameterInspection */ &$eventRoute, &$data, &$returnData) {
         $orderId = $returnData['order_id'];
@@ -325,7 +402,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             DB_DATABASE,
             DB_PREFIX
         ));
-        $customerInfo = json_decode($customerInfo->row['customerInfo'], true);
+        $customerInfo = @json_decode($customerInfo->row['customerInfo'], true);
         if (!$customerInfo) return;
 
         if (
@@ -353,57 +430,5 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             }
         }
     }
-    public function beforeAdminControllerSaleOrderShipping(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
-        $orderId = intval($this->request->get['order_id']);
-        if ($orderId <= 0) return;
 
-        $this->load->model('sale/order');
-        $orderData = $this->model_sale_order->getOrder($orderId);
-
-        if ($orderData['shipping_code'] !== 'econt_delivery.econt_delivery') return;
-
-        $shipment = $this->traceShipment($orderId);
-        if (!empty($shipment['shipmentNumber']) && !empty($shipment['pdfURL'])) {
-            header('Content-Type: application/pdf; charset=utf-8');
-            echo file_get_contents($shipment['pdfURL'], null, stream_context_create(array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false))));
-
-            return false;
-        } else {
-            $this->load->model('setting/setting');
-            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
-
-            try {
-                $curl = curl_init();
-                curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/OrdersService.createAWB.json");
-                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
-                curl_setopt($curl, CURLOPT_HTTPHEADER, [
-                    'Content-Type: application/json',
-                    "Authorization: {$settings['shipping_econt_delivery_private_key']}"
-                ]);
-                curl_setopt($curl, CURLOPT_POST, true);
-                curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode(array(
-                    'orderNumber' => $orderId
-                )));
-                curl_setopt($curl, CURLOPT_TIMEOUT, 6);
-                $response = json_decode(curl_exec($curl), true);
-                $responseInfo = curl_getinfo($curl);
-                if ($responseInfo['http_code'] !== 200) throw new Exception($response['message']);
-                curl_close($curl);
-            } catch (Exception $exception) {
-                header('Content-type: text/html; charset=utf-8');
-                echo $exception->getMessage();
-
-                return false;
-            }
-
-            if (!empty($response['shipmentNumber']) && !empty($response['pdfURL'])) {
-                header('Content-Type: application/pdf; charset=utf-8');
-                echo file_get_contents($response['pdfURL'], null, stream_context_create(array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false))));
-
-                return false;
-            }
-        }
-    }
 }
