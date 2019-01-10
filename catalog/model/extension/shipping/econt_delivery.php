@@ -20,7 +20,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
             $result = $this->db->query(sprintf("
                 SELECT
                     COUNT(z.zone_to_geo_zone_id) AS zoneIdsCount
-                FROM %s.%szone_to_geo_zone AS z
+                FROM `%s`.`%szone_to_geo_zone` AS z
                 WHERE TRUE
                     AND z.geo_zone_id = {$geoZoneId}
                     AND z.country_id = %d
