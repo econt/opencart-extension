@@ -176,7 +176,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
     public function beforeCartSavePayment() {
         if($this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
-            $cod = $this->request->request['payment_method'] == 'cod' ? '_cod' : '';
+            $cod = @$this->request->request['payment_method'] == 'cod' ? '_cod' : '';
             $this->session->data['shipping_method']['cost'] = $this->session->data['econt_delivery']['customer_info']['shipping_price'.$cod];
         }
     }
