@@ -43,10 +43,11 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 $email = $this->session->data['guest']['email'];
                 $phone = $this->session->data['guest']['telephone'];
             }
+
             @$frameParams = array(
                 'id_shop' => intval(@reset(explode('@',$this->config->get('shipping_econt_delivery_private_key')))),
                 'order_weight' => $this->cart->getWeight(),
-                'order_total' => $this->cart->getTotal(),
+                'order_total' => $this->getOrderTotal(),
                 'order_currency' => $this->session->data['currency'],
                 'customer_company' => $this->session->data['shipping_address']['company'],
                 'customer_name' => "{$this->session->data['shipping_address']['firstname']} {$this->session->data['shipping_address']['lastname']}",
@@ -131,6 +132,51 @@ class ModelExtensionShippingEcontDelivery extends Model {
             'sort_order' => intval($this->config->get('shipping_econt_delivery_sort_order')),
             'error' => false
         );
+    }
+
+    public function getOrderTotal() {
+        $products = $this->cart->getProducts();
+        foreach ($products as $product) {
+            $product_total = 0;
+            foreach ($products as $product_2) if ($product_2['product_id'] == $product['product_id']) $product_total += $product_2['quantity'];
+            $option_data = array();
+            foreach ($product['option'] as $option) {
+                $option_data[] = array(
+                    'product_option_id'       => $option['product_option_id'],
+                    'product_option_value_id' => $option['product_option_value_id'],
+                    'name'                    => $option['name'],
+                    'value'                   => $option['value'],
+                    'type'                    => $option['type']
+                );
+            }
+        }
+        $this->load->model('setting/extension');
+        $totals = array();
+        $taxes = $this->cart->getTaxes();
+        $total = 0;
+        $total_data = array(
+            'totals' => &$totals,
+            'taxes'  => &$taxes,
+            'total'  => &$total
+        );
+        $sort_order = array();
+        $results = $this->model_setting_extension->getExtensions('total');
+        foreach ($results as $key => $value) $sort_order[$key] = $this->config->get('total_' . $value['code'] . '_sort_order');
+        array_multisort($sort_order, SORT_ASC, $results);
+        foreach ($results as $result) {
+            if ($this->config->get('total_' . $result['code'] . '_status')) {
+                $this->load->model('extension/total/' . $result['code']);
+                $this->{'model_extension_total_' . $result['code']}->getTotal($total_data);
+            }
+        }
+        $sort_order = array();
+        foreach ($totals as $key => $value) $sort_order[$key] = $value['sort_order'];
+        array_multisort($sort_order, SORT_ASC, $totals);
+
+        return array_reduce($totals, function($total, $currentRow) {
+            if (!in_array($currentRow['code'], array('shipping', 'total'))) $total += $currentRow['value'];
+            return $total;
+        }, 0);
     }
 
 }

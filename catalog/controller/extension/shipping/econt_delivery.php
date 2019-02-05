@@ -77,6 +77,9 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             'partialDelivery' => 1,
             'items' => array()
         );
+
+        $productTotal = 0;
+
         $orderProducts = $this->model_checkout_order->getOrderProducts($orderId);
         if (!empty($orderProducts)) {
             if (count($orderProducts) <= 1) {
@@ -88,6 +91,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                 $productData = $this->model_catalog_product->getProduct($orderProduct['product_id']);
                 if (empty($productData)) continue;
 
+                $orderItemPrice = floatval($orderProduct['total']) + (floatval($orderProduct['tax']) * intval($orderProduct['quantity']));
                 $order['items'][] = array(
                     'name' => $productData['name'],
                     'SKU' => $productData['sku'],
@@ -95,8 +99,26 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                         'product_id' => $productData['product_id']
                     )), true),
                     'count' => $orderProduct['quantity'],
-                    'totalPrice' => floatval($orderProduct['total']) + (floatval($orderProduct['tax']) * intval($orderProduct['quantity'])),
+                    'totalPrice' => $orderItemPrice,
                     'totalWeight' => floatval($productData['weight'] * $orderProduct['quantity'])
+                );
+                $productTotal += $orderItemPrice;
+            }
+        }
+
+        $orderTotals = $this->model_checkout_order->getOrderTotals($orderData['order_id']);
+        if (!empty($orderTotals)) {
+            $orderTotal = array_reduce($orderTotals, function($total, $currentRow) {
+                if (!in_array($currentRow['code'], array('shipping', 'total'))) $total += $currentRow['value'];
+                return $total;
+            }, 0);
+            $discount = $orderTotal - $productTotal;
+            if ($discount != 0) {
+                $order['partialDelivery'] = 0;
+                $order['items'][] = array(
+                    'name' => $this->language->get('text_econt_delivery_order_discount'),
+                    'count' => 1,
+                    'totalPrice' => $discount
                 );
             }
         }
@@ -196,11 +218,10 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             $shopId = substr($econtDeliverySettings['shipping_econt_delivery_private_key'], 0, $separatorPos);
             if (intval($shopId) <= 0) throw new Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_shop_id_error'));
 
-            $total = floatval($this->cart->getTotal());
-            foreach ($this->cart->getTaxes() as $tax) $total += floatval($tax);
+            $this->load->model('extension/shipping/econt_delivery');
             $response['customer_info'] = array(
                 'id_shop' => $shopId,
-                'order_total' => $total,
+                'order_total' => $this->model_extension_shipping_econt_delivery->getOrderTotal(),
                 'order_weight' => $this->cart->getWeight(),
                 'order_currency' => @$this->session->data['currency'],
                 'customer_company' => @$this->session->data['shipping_address']['company'],
