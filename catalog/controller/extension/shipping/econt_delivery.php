@@ -214,6 +214,10 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                 'ignore_history' => true,
                 'default_css' => true
             );
+            $officeCode = trim(@$this->session->data['econt_delivery']['customer_info']['office_code']);
+            if (!empty($officeCode)) $response['customer_info']['customer_office_code'] = $officeCode;
+            $zip = trim(@$this->session->data['econt_delivery']['customer_info']['zip']);
+            if (!empty($zip)) $response['customer_info']['customer_zip'] = $zip;
             $response['customer_info_url'] = $econtDeliverySettings['shipping_econt_delivery_system_url'] . '/customer_info.php?' . http_build_query($response['customer_info'], null, '&');
         } catch (Exception $exception) {
             $response = array('error' => $exception->getMessage());

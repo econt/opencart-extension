@@ -57,6 +57,10 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 'customer_post_code' => $this->session->data['shipping_address']['postcode'],
                 'customer_address' => $this->session->data['shipping_address']['address_1'].' '.$this->session->data['shipping_address']['address_2'],
             );
+            $officeCode = trim(@$this->session->data['econt_delivery']['customer_info']['office_code']);
+            if (!empty($officeCode)) $frameParams['customer_office_code'] = $officeCode;
+            $zip = trim(@$this->session->data['econt_delivery']['customer_info']['zip']);
+            if (!empty($zip)) $frameParams['customer_zip'] = $zip;
 
             $this->load->model('setting/setting');
             $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
