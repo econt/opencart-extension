@@ -97,6 +97,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             CREATE TABLE IF NOT EXISTS `%s`.`%secont_delivery_customer_info` (
                 `id_order` INT(11) NOT NULL DEFAULT '0',
                 `customer_info` MEDIUMTEXT NULL,
+                `shipment_number` BIGINT(20) UNSIGNED NULL DEFAULT NULL,
                 PRIMARY KEY (`id_order`)
             )
             COLLATE = 'utf8_general_ci'
@@ -116,6 +117,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_beforeApi/before', 'extension/shipping/econt_delivery/beforeApi');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_getCustomerInfoParams/before', 'extension/shipping/econt_delivery/getCustomerInfoParams');
 
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_list/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderList');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderInfo');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderFrom');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterModelCheckoutOrderAddHistory');
@@ -160,6 +162,157 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return $response;
     }
 
+    private function printEcontDeliveryCreateLabelWindow(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, $data) { ?>
+        <?php
+            $this->load->model('setting/setting');
+            $econtDeliverySettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+
+            $this->language->load('extension/shipping/econt_delivery');
+
+            $orderId = intval(@$_GET['order_id']);
+            if ($orderId <= 0) $orderId = null;
+        ?>
+        <style>
+            #econt-delivery-create-label-modal .modal-dialog {
+                width: 600px;
+            }
+            #econt-delivery-create-label-modal .modal-body {
+                padding: 0;
+            }
+            #econt-delivery-create-label-modal iframe {
+                border: 0;
+                width: 100%;
+                height: 355px;
+            }
+        </style>
+        <div id="econt-delivery-create-label-modal" class="modal fade" role="dialog">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title"><?=$this->language->get('heading_title')?></h4>
+                    </div>
+                    <div class="modal-body">
+                        <iframe src="about:blank"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            $(function($) {
+                var empty__ = function(thingy) {
+                    return thingy == 0 || !thingy || (typeof(thingy) === 'object' && $.isEmptyObject(thingy));
+                }
+                var $createLabelWindow = $('#econt-delivery-create-label-modal').modal({
+                    'show': false,
+                    'backdrop': 'static'
+                });
+                $('[href="#open_econt_delivery_create_label_window"]').click(function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    $createLabelWindow.find('iframe').attr('src', '<?=$econtDeliverySettings['shipping_econt_delivery_system_url'] . '/create_label.php?'?>' + $.param({
+                        'order_number': (<?=json_encode($orderId)?> || $(this).attr('data-order-id')),
+                        'token': '<?=$econtDeliverySettings['shipping_econt_delivery_private_key']?>'
+                    }));
+                    $createLabelWindow.modal('show');
+                });
+                $(window).on('message', function(event){
+                    if (event['originalEvent']['origin'] != '<?=$econtDeliverySettings['shipping_econt_delivery_system_url']?>') return;
+
+                    var messageData = event['originalEvent']['data'];
+                    if (!messageData) return;
+
+                    switch (messageData['event']) {
+                        case 'cancel':
+                            $createLabelWindow.modal('hide');
+                            break;
+                        case 'confirm':
+                            if (messageData['printPdf'] === true && !empty__(messageData['shipmentStatus']['pdfURL'])) window.open(messageData['shipmentStatus']['pdfURL'], '_blank');
+                            window.location.href = 'index.php?' + $.param({
+                                'route': 'sale/order/info',
+                                'user_token': '<?=$data['user_token']?>',
+                                'order_id': messageData['orderData']['num']
+                            });
+                            break;
+                    }
+                });
+            });
+        </script>
+    <?php }
+
+    public function beforeAdminViewSaleOrderList(/** @noinspection PhpUnusedParameterInspection */ &$eventRoute, &$data) {
+        if (empty($data['orders'])) return;
+
+        $this->language->load('extension/shipping/econt_delivery');
+
+        $orderIds = array();
+        $orderData = array();
+        foreach ($data['orders'] as $order) {
+            $orderId = intval($order['order_id']);
+            $orderData[$orderId] = array(
+                'id' => $orderId,
+                'shippingCode' => $order['shipping_code']
+            );
+            if ($orderId > 0 || $order['shipping_code'] === 'econt_delivery.econt_delivery') $orderIds[$orderId] = $orderId;
+        }
+        if (!empty($orderIds)) {
+            $queryResult = $this->db->query(sprintf("
+                SELECT
+                    ci.id_order AS orderId,
+                    ci.shipment_number AS shipmentNum
+                FROM `%s`.`%secont_delivery_customer_info` AS ci
+                WHERE TRUE
+                    AND ci.id_order IN (%s)
+                    AND (
+                            ci.shipment_number != 0
+                        AND ci.shipment_number IS NOT NULL
+                    )
+                GROUP BY ci.id_order
+            ",
+                DB_DATABASE,
+                DB_PREFIX,
+                implode(', ', $orderIds)
+            ));
+            foreach ($queryResult->rows as $row) $orderData[$row['orderId']]['shipmentNum'] = $row['shipmentNum'];
+        }
+
+        ob_start(); ?>
+            <script>
+                window.econtDelivery = {
+                    'orderData': <?=json_encode($orderData)?>
+                };
+                $(function($) {
+                    var orderListTable = $('#form-order table');
+                    orderListTable.find('thead tr td:last-child').before(($('<td></td>').text('<?=$this->language->get('text_order_list_econt_shipping_column_label');?>')));
+                    orderListTable.find('tbody tr').each(function(rowIndex, row) {
+                        var $row = $(row)
+                        var orderId = $row.find('[name^="selected"]').val();
+
+                        var $wayBillContent = null;
+                        if (window.econtDelivery['orderData'] && window.econtDelivery['orderData'][orderId] && window.econtDelivery['orderData'][orderId]['shippingCode'] === 'econt_delivery.econt_delivery') {
+                            $wayBillContent = $('<a></a>');
+                            if (window.econtDelivery['orderData'][orderId]['shipmentNum']) {
+                                $wayBillContent.attr({
+                                    'href': '<?=$this->trackShipmentUrl?>/' + window.econtDelivery['orderData'][orderId]['shipmentNum'],
+                                    'target': '_blank'
+                                }).text(window.econtDelivery['orderData'][orderId]['shipmentNum']);
+                            } else {
+                                $wayBillContent.attr({
+                                    'href': '#open_econt_delivery_create_label_window',
+                                    'target': '_self',
+                                    'data-order-id': orderId
+                                }).text('<?=$this->language->get('text_order_list_econt_shipping_column_prepare_loading')?>');
+                            }
+                        }
+                        $row.find('td:last-child').before(($('<td></td>').css({'text-align': 'center'}).append($wayBillContent)));
+                    });
+                });
+            </script>
+            <?php $this->printEcontDeliveryCreateLabelWindow($eventRoute, $data) ?>
+        <?php $data['footer'] = str_replace('</body>', sprintf('%s</body>', ob_get_contents()), $data['footer']);
+        ob_end_clean();
+    }
     public function beforeAdminViewSaleOrderFrom(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
         $this->language->load('extension/shipping/econt_delivery');
 
@@ -290,7 +443,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         <?php $data['footer'] = str_replace('</body>', sprintf('%s</body>', ob_get_contents()), $data['footer']);
         ob_end_clean();
     }
-    public function beforeAdminViewSaleOrderInfo(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
+    public function beforeAdminViewSaleOrderInfo(/** @noinspection PhpUnusedParameterInspection */ &$eventRoute, &$data) {
         $orderId = intval($this->request->get['order_id']);
         if ($orderId <= 0) return;
 
@@ -303,6 +456,17 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         $data['shipping_method'] = $this->language->get('text_shipping_via_econt');
         $shipment = $this->traceShipment($orderId);
+        $this->db->query(sprintf("
+            UPDATE `%s`.`%secont_delivery_customer_info` AS ci
+            SET ci.shipment_number = '%s'
+            WHERE TRUE
+                AND ci.id_order = %d
+        ",
+            DB_DATABASE,
+            DB_PREFIX,
+            $this->db->escape(@$shipment['shipmentNumber']),
+            $orderId
+        ));
         if (!empty($shipment['shipmentNumber'])) {
             $data['shipping_method'] .= sprintf(' - №<a href="%s" target="_blank" data-toggle="tooltip" data-original-title="%s">%s</a>',
                 "{$this->trackShipmentUrl}/{$shipment['shipmentNumber']}",
@@ -311,78 +475,9 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             );
             if (!empty($shipment['pdfURL'])) $data['shipping'] = $shipment['pdfURL'];
         } else {
-            $this->load->model('setting/setting');
-            $econtDeliverySettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
-
             $data['shipping'] = '#open_econt_delivery_create_label_window';
             ob_start(); ?>
-                <style>
-                    #econt-delivery-create-label-modal .modal-dialog {
-                        width: 520px;
-                    }
-                    #econt-delivery-create-label-modal .modal-body {
-                        padding: 0;
-                    }
-                    #econt-delivery-create-label-modal iframe {
-                        border: 0;
-                        width: 100%;
-                        height: 280px;
-                    }
-                </style>
-                <div id="econt-delivery-create-label-modal" class="modal fade" role="dialog">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                                <h4 class="modal-title"><?=$this->language->get('heading_title')?></h4>
-                            </div>
-                            <div class="modal-body">
-                                <iframe src="about:blank"></iframe>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <script>
-                    window.econtDelivery = window.econtDelivery || {
-                        empty: function(thingy) {
-                            return thingy == 0 || !thingy || (typeof(thingy) === 'object' && $.isEmptyObject(thingy));
-                        },
-
-                        orderId: <?=json_encode($orderId)?>
-                    };
-                    $(function($) {
-                        var $createLabelWindow = $('#econt-delivery-create-label-modal').modal({
-                            'show': false,
-                            'backdrop': 'static'
-                        });
-                        $('a[href="#open_econt_delivery_create_label_window"]').click(function(event) {
-                            event.preventDefault();
-                            event.stopPropagation();
-
-                            $createLabelWindow.find('iframe').attr('src', '<?=$econtDeliverySettings['shipping_econt_delivery_system_url'] . '/create_label.php?'. http_build_query(array(
-                                'order_number' => $orderId,
-                                'token' => $econtDeliverySettings['shipping_econt_delivery_private_key']
-                            ))?>');
-                            $createLabelWindow.modal('show');
-                        });
-                        $(window).on('message', function(event){
-                            if (event['originalEvent']['origin'] != '<?=$econtDeliverySettings['shipping_econt_delivery_system_url']?>') return;
-
-                            var messageData = event['originalEvent']['data'];
-                            if (!messageData) return;
-
-                            switch (messageData['event']) {
-                                case 'cancel':
-                                    $createLabelWindow.modal('hide');
-                                    break;
-                                case 'confirm':
-                                    if (messageData['printPdf'] === true && !window.econtDelivery.empty(messageData['shipmentStatus']['pdfURL'])) window.open(messageData['shipmentStatus']['pdfURL'], '_blank');
-                                    window.location.href = window.location.href;
-                                    break;
-                            }
-                        });
-                    });
-                </script>
+                <?php $this->printEcontDeliveryCreateLabelWindow($eventRoute, $data); ?>
             <?php $data['footer'] = str_replace('</body>', sprintf('%s</body>', ob_get_contents()), $data['footer']);
             ob_end_clean();
         }

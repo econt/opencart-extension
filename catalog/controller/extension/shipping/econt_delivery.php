@@ -169,7 +169,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             $this->session->data['shipping_address']['city'] = $this->session->data['econt_delivery']['customer_info']['city_name'];
             $this->session->data['shipping_address']['postcode'] = $this->session->data['econt_delivery']['customer_info']['post_code'];
             if($this->session->data['econt_delivery']['customer_info']['office_code']) {
-                $this->session->data['shipping_address']['address_1'] = 'Econt office: '.$this->session->data['econt_delivery']['customer_info']['office_code'];
+                $this->session->data['shipping_address']['address_1'] = 'Econt office: ' . $this->session->data['econt_delivery']['customer_info']['office_name'];
                 $this->session->data['shipping_address']['address_2'] = $this->session->data['econt_delivery']['customer_info']['address'];
             } else {
                 $this->session->data['shipping_address']['address_1'] = $this->session->data['econt_delivery']['customer_info']['address'];

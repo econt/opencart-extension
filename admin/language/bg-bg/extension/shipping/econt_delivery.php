@@ -23,3 +23,6 @@ $_['text_shipping_via_econt'] = 'Доставка чрез Еконт';
 $_['text_trace_shipping'] = 'проследи пратка';
 $_['text_invalid_order_id'] = 'Невалидно ID на поръчка';
 $_['text_invalid_shipping_method'] = 'Невалидно ID на поръчка';
+
+$_['text_order_list_econt_shipping_column_label'] = 'Товарителница Еконт';
+$_['text_order_list_econt_shipping_column_prepare_loading'] = 'Изпрати';
