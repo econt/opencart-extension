@@ -151,7 +151,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return json_decode($response, true);
     }
 
-    public function afterViewCheckoutBilling($route,$templateParams,$html) {
+    public function afterViewCheckoutBilling(/** @noinspection PhpUnusedParameterInspection */ $route, $templateParams, $html) {
         return preg_replace("#<div (class=\"checkbox\">\\s+<label>\\s+<input\\s+type=\"checkbox\"\\s+name=\"shipping_address\")#i",'<div style="display:none !important;" \1',$html);
     }
     public function beforeCartSaveShipping() {

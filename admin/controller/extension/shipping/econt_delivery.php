@@ -229,11 +229,13 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                             break;
                         case 'confirm':
                             if (messageData['printPdf'] === true && !empty__(messageData['shipmentStatus']['pdfURL'])) window.open(messageData['shipmentStatus']['pdfURL'], '_blank');
-                            window.location.href = 'index.php?' + $.param({
-                                'route': 'sale/order/info',
-                                'user_token': '<?=$data['user_token']?>',
-                                'order_id': messageData['orderData']['num']
-                            });
+                            setTimeout(function() {
+                                window.location.href = 'index.php?' + $.param({
+                                    'route': 'sale/order/info',
+                                    'user_token': '<?=$data['user_token']?>',
+                                    'order_id': messageData['orderData']['num']
+                                });
+                            }, 300);
                             break;
                     }
                 });
