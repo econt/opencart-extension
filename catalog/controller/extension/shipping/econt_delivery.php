@@ -148,6 +148,30 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             $logger->write(sprintf('Curl failed with error [%d] %s', $exception->getCode(), $exception->getMessage()));
         }
 
+        if ($orderData['shipping_code'] === 'econt_delivery.econt_delivery' && $orderData['order_id']) {
+            $this->session->data['shipping_address']['address_1'] = ($customerInfo['office_code'] ? $customerInfo['office_name'] : $customerInfo['address']);
+            $this->session->data['shipping_address']['address_2'] = ($customerInfo['office_code'] ? $customerInfo['address'] : '');
+            $this->session->data['shipping_address']['city'] = $customerInfo['city_name'];
+            $this->session->data['shipping_address']['postcode'] = $customerInfo['post_code'];
+            $this->db->query(sprintf("
+                UPDATE `%s`.`%sorder` AS o
+                SET o.shipping_address_1 = '%s',
+                    o.shipping_address_2 = '%s',
+                    o.shipping_city = '%s',
+                    o.shipping_postcode = '%s'
+                WHERE TRUE
+                    AND o.order_id = %d
+            ",
+                DB_DATABASE,
+                DB_PREFIX,
+                $this->db->escape($this->session->data['shipping_address']['address_1']),
+                $this->db->escape($this->session->data['shipping_address']['address_2']),
+                $this->db->escape($this->session->data['shipping_address']['city']),
+                $this->db->escape($this->session->data['shipping_address']['postcode']),
+                $orderData['order_id']
+            ));
+        }
+
         return json_decode($response, true);
     }
 
