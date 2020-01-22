@@ -80,7 +80,18 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         $productTotal = 0;
 
-        $orderProducts = $this->model_checkout_order->getOrderProducts($orderId);
+        $dbp = DB_PREFIX;
+        $orderProducts = $this->db->query("
+            SELECT
+                op.*,
+                p.sku as sku,
+                p.weight + COALESCE(IF(ov.weight_prefix = '-',-ov.weight,ov.weight),0) as weight
+            FROM {$dbp}order_product op
+            JOIN {$dbp}product p ON p.product_id = op.product_id
+            LEFT JOIN {$dbp}order_option oo ON oo.order_id = op.order_id AND oo.order_product_id = op.order_product_id
+            LEFT JOIN {$dbp}product_option_value ov ON ov.product_option_value_id = oo.product_option_value_id
+            WHERE op.order_id = ".intval($orderId)
+        );
         if (!empty($orderProducts)) {
             if (count($orderProducts) <= 1) {
                 $orderProduct = reset($orderProducts);
@@ -88,19 +99,16 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             }
             $this->load->model('catalog/product');
             foreach ($orderProducts as $orderProduct) {
-                $productData = $this->model_catalog_product->getProduct($orderProduct['product_id']);
-                if (empty($productData)) continue;
-
                 $orderItemPrice = floatval($orderProduct['total']) + (floatval($orderProduct['tax']) * intval($orderProduct['quantity']));
                 $order['items'][] = array(
-                    'name' => $productData['name'],
-                    'SKU' => $productData['sku'],
+                    'name' => $orderProduct['name'],
+                    'SKU' => $orderProduct['sku'],
                     'URL' => $this->url->link('product/product', http_build_query(array(
-                        'product_id' => $productData['product_id']
+                        'product_id' => $orderProduct['product_id']
                     )), true),
                     'count' => $orderProduct['quantity'],
                     'totalPrice' => $orderItemPrice,
-                    'totalWeight' => floatval($productData['weight'] * $orderProduct['quantity'])
+                    'totalWeight' => floatval($orderProduct['weight'] * $orderProduct['quantity'])
                 );
                 $productTotal += $orderItemPrice;
             }
