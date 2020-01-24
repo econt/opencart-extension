@@ -85,13 +85,15 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             SELECT
                 op.*,
                 p.sku as sku,
-                p.weight + COALESCE(IF(ov.weight_prefix = '-',-ov.weight,ov.weight),0) as weight
+                p.weight + SUM(COALESCE(IF(ov.weight_prefix = '-',-ov.weight,ov.weight),0)) as weight
             FROM {$dbp}order_product op
             JOIN {$dbp}product p ON p.product_id = op.product_id
             LEFT JOIN {$dbp}order_option oo ON oo.order_id = op.order_id AND oo.order_product_id = op.order_product_id
             LEFT JOIN {$dbp}product_option_value ov ON ov.product_option_value_id = oo.product_option_value_id
-            WHERE op.order_id = ".intval($orderId)
-        );
+            WHERE op.order_id = ".intval($orderId)."
+            GROUP BY p.product_id
+        ");
+        $orderProducts = $orderProducts->rows;
         if (!empty($orderProducts)) {
             if (count($orderProducts) <= 1) {
                 $orderProduct = reset($orderProducts);
