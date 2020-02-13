@@ -1,0 +1,124 @@
+<!-- header -->
+{{ header }}
+<!-- menu -->
+{{ left_menu }}
+
+<!-- page -->
+<div id="content">
+    <!-- css -->
+    <style>
+        #form-econt-delivery {
+            margin-bottom: 0;
+        }
+    </style>
+
+    <!-- header -->
+    <div class="page-header">
+        <div class="container-fluid">
+            <!-- actions -->
+            <div class="pull-right">
+                <button type="submit" form="form-econt-delivery" data-toggle="tooltip" title="{{ button_save }}" class="btn btn-primary"><i class="fa fa-save"></i></button>
+                <a href="{{ actions['cancel_url'] }}" data-toggle="tooltip" title="{{ button_cancel }}" class="btn btn-default"><i class="fa fa-reply"></i></a>
+            </div>
+
+            <!-- page title -->
+            <h1>{{ heading_title }}</h1>
+
+            <!-- breadcrumb -->
+            <ul class="breadcrumb">
+                {% for breadcrumb in breadcrumbs %}
+                    <li><a href="{{ breadcrumb.href }}">{{ breadcrumb.text }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- body -->
+    <div class="container-fluid">
+        <!-- messages -->
+        {% if error_warning %}
+            <div class="alert alert-danger"><i class="fa fa-exclamation-circle"></i> {{ error_warning }}
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+            </div>
+        {% endif %}
+        {% if success %}
+            <div class="alert alert-success alert-dismissible"><i class="fa fa-check-circle"></i> {{ success }}
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+            </div>
+        {% endif %}
+
+        <!-- form container -->
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <!-- form title -->
+                <h3 class="panel-title"><i class="fa fa-pencil"></i> {{ text_edit_econt_delivery_settings }}</h3>
+            </div>
+            <div class="panel-body">
+                <!-- form -->
+                <form action="{{ actions['submit_url'] }}" method="post" enctype="multipart/form-data" id="form-econt-delivery" class="form-horizontal">
+                    <input type="hidden" name="action" value="save_settings" />
+
+                    <!-- system urls -->
+                    <div class="form-group">
+                        <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-status">{{ text_system_urls }}</label>
+                        <div class="col-sm-10">
+                            <select name="shipping_econt_delivery_system_url" id="input-shipping-econt-delivery-url" class="form-control">
+                                {% for system_name, system_url in system_urls %}
+                                    <option value="{{ system_url }}" {{ (settings['shipping_econt_delivery_system_url'] == system_url) ? 'selected="selected"' : '' }}>{{ _context['text_system_url_' ~ system_name] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- private key -->
+                    <div class="form-group">
+                        <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-private-key">{{ text_private_key }}</label>
+                        <div class="col-sm-10">
+                            <input type="password" name="shipping_econt_delivery_private_key" value="{{ settings['shipping_econt_delivery_private_key'] }}" placeholder="{{ text_private_key }}" id="input-shipping-econt-delivery-private-key" class="form-control" />
+                        </div>
+                    </div>
+
+                    <!-- geo zone -->
+                    <div class="form-group">
+                        <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-geo-zone-id">{{ text_geo_zone }}</label>
+                        <div class="col-sm-10">
+                            <select name="shipping_econt_delivery_geo_zone_id" id="input-shipping-econt-delivery-geo-zone-id" class="form-control">
+                                <option value="0" {{ (settings['shipping_econt_delivery_geo_zone_id'] == 0) ? 'selected="selected"' : '' }}>{{ text_geo_zone_all_zones }}</option>
+                                {% for geo_zone in geo_zones %}
+                                    <option value="{{ geo_zone.geo_zone_id }}" {{ (settings['shipping_econt_delivery_geo_zone_id'] == geo_zone.geo_zone_id) ? 'selected="selected"' : '' }}>{{ geo_zone.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!--status -->
+                    <div class="form-group">
+                        <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-status">{{ text_status }}</label>
+                        <div class="col-sm-10">
+                            <select name="shipping_econt_delivery_status" id="input-shipping-econt-delivery-status" class="form-control">
+                                <option value="1" {{ (settings['shipping_econt_delivery_status'] == 1) ? 'selected="selected"' : '' }}>{{ text_status_enabled }}</option>
+                                <option value="0" {{ (settings['shipping_econt_delivery_status'] != 1) ? 'selected="selected"' : '' }}>{{ text_status_disabled }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- sorting -->
+                    <div class="form-group">
+                        <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-sort-order">{{ text_sort_order }}</label>
+                        <div class="col-sm-10">
+                            <input type="number" name="shipping_econt_delivery_sort_order" value="{{ settings['shipping_econt_delivery_sort_order'] }}" placeholder="{{ text_sort_order_placeholder }}" id="input-shipping-econt-delivery-sort-order" class="form-control" />
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- js -->
+<script>
+
+</script>
+
+<!-- footer -->
+{{ footer }}
