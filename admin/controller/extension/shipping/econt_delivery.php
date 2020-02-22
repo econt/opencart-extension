@@ -109,7 +109,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/payment_method/save/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/shipping_method/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
-//        OneStepCheckout
+        /*OneStepCheckout*/
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/payment_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/shipping_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/guest/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
