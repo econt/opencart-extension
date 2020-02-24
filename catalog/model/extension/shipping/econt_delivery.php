@@ -34,8 +34,9 @@ class ModelExtensionShippingEcontDelivery extends Model {
             ));
             if (intval($result->row['zoneIdsCount']) <= 0) return array();
         }
+        $oneStepCheckoutModuleEnabled = $this->request->request['route'] == 'extension/quickcheckout/shipping_method';
         $this->load->language('extension/shipping/econt_delivery');
-        if($this->request->request['route'] == 'checkout/shipping_method') {
+        if($this->request->request['route'] == 'checkout/shipping_method' || $oneStepCheckoutModuleEnabled) {
             if($this->cart->customer && $this->cart->customer->getEmail()) {
                 $email = $this->cart->customer->getEmail();
                 $phone = $this->cart->customer->getTelephone();
@@ -74,7 +75,14 @@ class ModelExtensionShippingEcontDelivery extends Model {
             <script>
                 (function($){
                     var $econtRadio = $('input:radio[value=\'econt_delivery.econt_delivery\']');
-                    var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>').appendTo($econtRadio.parent().parent());
+
+                    <?php if ($oneStepCheckoutModuleEnabled) { ?>
+                        //console.log($econtRadio.closest('tr'))
+                        $econtRadio.closest('tr').after('<tr id="econt_delivery_row"><td colspan="3"><div id="econt_iframe_wrapper"></div></td></tr>');
+                    <?php } ?>
+
+                    var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>')
+                                            .appendTo(<?php echo $oneStepCheckoutModuleEnabled ? '$("#econt_iframe_wrapper")' : '$econtRadio.parent().parent()'; ?>);
                     $econtRadio.parent().contents().each(function(i,el){if(el.nodeType == 3) el.nodeValue = '';});//zabursvane na originalniq text
                     var $econtLabelText = $('<span></span>').text(<?php echo json_encode($deliveryMethodTxt)?>);
                     $econtRadio.after($econtLabelText);
@@ -82,8 +90,8 @@ class ModelExtensionShippingEcontDelivery extends Model {
                     var $frame = null;
                     $econtRadio.click(function(){
                         if(!$frame) {
-                            $frame = $('<iframe style="width:100%;height:612px;border:none;margin-top: 15px;" src="<?php echo $frameURL?>"></iframe>');
-                            $econtRadio.parent().parent().append($frame);
+                            $frame = $('<iframe style="width:100%;height:500px;border:none;margin-top: 15px; overflow: hidden" src="<?php echo $frameURL?>"></iframe>');
+                            <?php echo $oneStepCheckoutModuleEnabled ? '$("#econt_iframe_wrapper").append($frame)' : '$econtRadio.parent().parent().append($frame)'; ?>;
                         }
                     });
                     $('input:radio[name=shipping_method]').change(function(){

@@ -75,6 +75,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             'currency' => $orderData['currency_code'],
             'cod' => ($orderData['payment_code'] === 'cod'),
             'partialDelivery' => 1,
+            'clientSoftware' => 'DeliveryOpenCart3_v1.1',
             'items' => array()
         );
 
