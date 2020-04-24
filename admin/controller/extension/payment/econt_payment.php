@@ -2,6 +2,16 @@
 class ControllerExtensionPaymentEcontPayment extends Controller {
     private $error = array();
 
+    public function install() {
+        return $this->checkIfDeliveryIsInstalled();
+    }
+
+//    public function uninstall() {
+//        $this->load->model('setting/event');
+//
+//        $this->model_setting_event->deleteEventByCode('econt_delivery');
+//    }
+
     public function index() {
         $this->load->language('extension/payment/econt_payment');
 
@@ -90,10 +100,30 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
     }
 
     protected function validate() {
-        if (!$this->user->hasPermission('modify', 'extension/payment/econt_payment')) {
+        if (!$this->user->hasPermission('modify', 'extension/payment/econt_payment') && !$this->checkIfDeliveryIsInstalled()) {
             $this->error['warning'] = $this->language->get('error_permission');
         }
 
         return !$this->error;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function checkIfDeliveryIsInstalled()
+    {
+        $result = $this->db->query(sprintf("
+            SELECT * FROM `%s`.`%sextension` WHERE `type` = 'shipping' AND `code` = 'econt_delivery'
+        ",
+            DB_DATABASE,
+            DB_PREFIX
+        ));
+
+        if (!$result->num_rows) {
+            $this->error['warning'] = 'Модула "Достави с Еконт" трябва да бъде инсталиран преди това!';
+            return false;
+        }
+
+        return true;
     }
 }

@@ -14,6 +14,8 @@
  */
 class ModelExtensionShippingEcontDelivery extends Model {
 
+    private $oneStepCheckoutModuleEnabled = false;
+
     public function getQuote($address) {
         $geoZoneId = intval($this->config->get('shipping_econt_delivery_geo_zone_id'));
         if ($geoZoneId !== 0) {
@@ -34,8 +36,10 @@ class ModelExtensionShippingEcontDelivery extends Model {
             ));
             if (intval($result->row['zoneIdsCount']) <= 0) return array();
         }
+
+        $this->oneStepCheckoutModuleEnabled = $this->request->request['route'] == 'extension/quickcheckout/shipping_method';
         $this->load->language('extension/shipping/econt_delivery');
-        if($this->request->request['route'] == 'checkout/shipping_method') {
+        if($this->request->request['route'] == 'checkout/shipping_method' || $this->oneStepCheckoutModuleEnabled) {
             if($this->cart->customer && $this->cart->customer->getEmail()) {
                 $email = $this->cart->customer->getEmail();
                 $phone = $this->cart->customer->getTelephone();
@@ -57,7 +61,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 'customer_city_name' => $this->session->data['shipping_address']['city'],
                 'customer_post_code' => $this->session->data['shipping_address']['postcode'],
                 'customer_address' => $this->session->data['shipping_address']['address_1'].' '.$this->session->data['shipping_address']['address_2'],
-                'confirm_txt' => 'Смятай'
+//                'confirm_txt' => 'Смятай'
             );
             $officeCode = trim(@$this->session->data['econt_delivery']['customer_info']['office_code']);
             if (!empty($officeCode)) $frameParams['customer_office_code'] = $officeCode;
@@ -75,7 +79,13 @@ class ModelExtensionShippingEcontDelivery extends Model {
             <script>
                 (function($){
                     var $econtRadio = $('input:radio[value=\'econt_delivery.econt_delivery\']');
-                    var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>').appendTo($econtRadio.parent().parent());
+
+                    <?php if ($this->oneStepCheckoutModuleEnabled) { ?>
+                        $econtRadio.closest('tr').after('<tr id="econt_delivery_row"><td colspan="3"><div id="econt_iframe_wrapper"></div></td></tr>');
+                    <?php } ?>
+
+                    var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>')
+                        .appendTo(<?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_wrapper")' : '$econtRadio.parent().parent()'; ?>);
                     $econtRadio.parent().contents().each(function(i,el){if(el.nodeType == 3) el.nodeValue = '';});//zabursvane na originalniq text
                     var $econtLabelText = $('<span></span>').text(<?php echo json_encode($deliveryMethodTxt)?>);
                     $econtRadio.after($econtLabelText);
@@ -84,7 +94,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
                     $econtRadio.click(function(){
                         if(!$frame) {
                             $frame = $('<iframe style="width:100%;height:612px;border:none;margin-top: 15px;" src="<?php echo $frameURL?>"></iframe>');
-                            $econtRadio.parent().parent().append($frame);
+                            <?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_wrapper").append($frame)' : '$econtRadio.parent().parent().append($frame)'; ?>;
                         }
                     });
                     $('input:radio[name=shipping_method]').change(function(){
@@ -305,6 +315,8 @@ class ModelExtensionShippingEcontDelivery extends Model {
 
     public function calculateShippingPrice()
     {
+//        @todo make check of some sort  || !$this->oneStepCheckoutModuleEnabled
+//        var_dump($this->session->data['econt_delivery']['customer_info']);
         if (!array_key_exists('econt_delivery', $this->session->data)) {
             return;
         }
@@ -313,9 +325,11 @@ class ModelExtensionShippingEcontDelivery extends Model {
             return;
         }
 
+        $aData = $this->session->data['econt_delivery']['customer_info'];
+
         $payment_method_price_map = [
-            'cod' => $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'],
-            'econt_payment' => $this->session->data['econt_delivery']['customer_info']['shipping_price_cod_e'],
+            'cod' => array_key_exists('shipping_price_cod', $aData) ? $aData['shipping_price_cod'] : 0,
+            'econt_payment' => array_key_exists('shipping_price_cod_e', $aData) ? $aData['shipping_price_cod_e'] : 0,
         ];
 
         $payment_method = $this->session->data['payment_method']['code'];
