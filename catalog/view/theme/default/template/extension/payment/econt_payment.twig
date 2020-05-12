@@ -1,28 +1,32 @@
-{{ econt_payment_paymentURI }}
 <div class="buttons">
   <div class="pull-right">
-    <input type="button" value="{{ button_confirm }}" id="button-confirm" data-loading-text="{{ text_loading }}" class="btn btn-primary" />
+    <a href="{{ econt_payment_paymentURI }}" id="button-confirm" data-loading-text="{{ text_loading }}" class="btn btn-primary">
+		{{ button_confirm }}
+	</a>
+{#    <input type="button" value="{{ button_confirm }}" id="button-confirm" data-loading-text="{{ text_loading }}" class="btn btn-primary" />#}
   </div>
 </div>
 <script type="text/javascript"><!--
-$('#button-confirm').on('click', function() {
-	$.ajax({
-		url: 'index.php?route=extension/payment/econt_payment/confirm',
-		dataType: 'json',
-		beforeSend: function() {
-			$('#button-confirm').button('loading');
-		},
-		complete: function() {
-			$('#button-confirm').button('reset');
-		},
-		success: function(json) {
-			if (json['redirect']) {
-				location = json['redirect'];	
-			}
-		},
-		error: function(xhr, ajaxOptions, thrownError) {
-			alert(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
-		}
-	});
-});
+// $('#button-confirm').on('click', function(e) {
+// 	e.preventDefault();
+// 	e.stopPropagation();
+// 	$.ajax({
+// 		url: 'index.php?route=extension/payment/econt_payment/confirm',
+// 		dataType: 'json',
+// 		beforeSend: function() {
+// 			$('#button-confirm').button('loading');
+// 		},
+// 		complete: function() {
+// 			$('#button-confirm').button('reset');
+// 		},
+// 		success: function(json) {
+// 			if (json['redirect']) {
+// 				location = json['redirect'];
+// 			}
+// 		},
+// 		error: function(xhr, ajaxOptions, thrownError) {
+// 			alert(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
+// 		}
+// 	});
+// });
 //--></script>

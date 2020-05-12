@@ -25,12 +25,17 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
         $url = "/services/PaymentsService.createPayment.json";
 
         $response =  json_decode($this->sendRequest($url, $aReqData), true);
-
+//            var_dump($response); die();
         if (array_key_exists('paymentIdentifier', $response)) {
             $this->session->data['econt_payment_paymentIdentifier'] = $response['paymentIdentifier'];
         }
 
-		return $this->load->view('extension/payment/econt_payment', ['econt_payment_paymentURI' => $response['paymentURI']]);
+        $sUrlSuccess = urlencode('index.php?route=extension/payment/econt_payment/confirm');
+        $sUrlReject = urlencode('index.php?route=checkout/checkout');
+
+		return $this->load->view('extension/payment/econt_payment', [
+		    'econt_payment_paymentURI' => $response['paymentURI'] . '&successUrl=' . $sUrlSuccess . '&failUrl=' . $sUrlReject
+        ]);
 	}
 
     /**
@@ -43,9 +48,10 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
 		if ($this->session->data['payment_method']['code'] == 'econt_payment') {
 
             $aReqData = json_encode(['paymentIdentifier' => $this->session->data['econt_payment_paymentIdentifier']]);
-//            var_dump($aReqData); die();
             $url = "/services/PaymentsService.confirmPayment.json";
             $response =  json_decode($this->sendRequest($url, $aReqData), true);
+            var_dump('<pre>',$response); die();
+
             $this->session->data['econt_payment_paymentToken'] = $response['paymentToken'];
 
             unset($this->session->data['econt_payment_paymentIdentifier']);
