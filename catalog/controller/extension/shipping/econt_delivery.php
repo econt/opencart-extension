@@ -23,7 +23,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         if (isset($this->session->data['econt_payment_paymentToken'])) {
             $token = $this->session->data['econt_payment_paymentToken'];
         } else {
-            $token = '';
+            $token = 'canceled';
         }
 
         $this->load->model('extension/shipping/econt_delivery');
