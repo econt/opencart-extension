@@ -5,8 +5,8 @@ define('BASE_URL', dirname(__FILE__));
 $zip = new ZipArchive();
 if ($zip->open(BASE_URL . DIRECTORY_SEPARATOR . 'econt_delivery.ocmod.zip', ZipArchive::CREATE) !== true) die('error 1');
 //foreach (new RegexIterator(new RecursiveIteratorIterator(new \RecursiveDirectoryIterator(__DIR__, \FilesystemIterator::SKIP_DOTS)), '/.*econt_[delivery,payment].*/i', RecursiveRegexIterator::GET_MATCH) as $file) { // payment and shipping
-foreach (new RegexIterator(new RecursiveIteratorIterator(new \RecursiveDirectoryIterator(__DIR__, \FilesystemIterator::SKIP_DOTS)), '/.*econt_delivery.*/i', RecursiveRegexIterator::GET_MATCH) as $file) { // only shipping
-//foreach (new RegexIterator(new RecursiveIteratorIterator(new \RecursiveDirectoryIterator(__DIR__, \FilesystemIterator::SKIP_DOTS)), '/.*econt_payment.*/i', RecursiveRegexIterator::GET_MATCH) as $file) { // only payment
+//foreach (new RegexIterator(new RecursiveIteratorIterator(new \RecursiveDirectoryIterator(__DIR__, \FilesystemIterator::SKIP_DOTS)), '/.*econt_delivery.*/i', RecursiveRegexIterator::GET_MATCH) as $file) { // only shipping
+foreach (new RegexIterator(new RecursiveIteratorIterator(new \RecursiveDirectoryIterator(__DIR__, \FilesystemIterator::SKIP_DOTS)), '/.*econt_payment.*/i', RecursiveRegexIterator::GET_MATCH) as $file) { // only payment
     $file = reset($file);
     if (in_array(basename($file), ['econt_delivery_create_ocmod_zip.php', 'econt_delivery.ocmod.zip'])) continue;
 
