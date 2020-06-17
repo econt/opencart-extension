@@ -87,6 +87,30 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     public function afterViewCheckoutBilling(/** @noinspection PhpUnusedParameterInspection */ $route, $templateParams, $html) {
         return preg_replace("#<div (class=\"checkbox\">\\s+<label>\\s+<input\\s+type=\"checkbox\"\\s+name=\"shipping_address\")#i",'<div style="display:none !important;" \1',$html);
     }
+
+    public function updateShippingPrice($data)
+    {
+        if($this->session->data['shipping_method']['code'] != 'econt_delivery.econt_delivery') {
+            return;
+        }
+
+        $paymentData = null;
+
+        if (array_key_exists("econt_delivery_temporary_shipping_price", $_COOKIE)) {
+            $paymentData = json_decode($_COOKIE["econt_delivery_temporary_shipping_price"]);
+        }
+
+        $paymentMethod = $this->session->data['payment_method']['code'];
+
+        if ($paymentData && $paymentMethod === 'cod') {
+            $this->session->data['shipping_method']['cost'] = $paymentData->shipping_price_cod;
+        } elseif ($paymentData && $paymentMethod === 'econt_payment') {
+            $this->session->data['shipping_method']['cost'] = $paymentData->shipping_price_cod_e;
+        } else {
+            $this->session->data['shipping_method']['cost'] = $paymentData ? $paymentData->shipping_price : 0;
+        }
+    }
+
     public function beforeCartSaveShipping() {
         if($this->request->request['shipping_method'] == 'econt_delivery.econt_delivery') {
             $this->session->data['econt_delivery']['customer_info'] = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']),true);
@@ -232,7 +256,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         if (!@$this->session->data['payment_method'] && is_array(@$this->session->data['payment_methods']) && in_array(@$this->request->post['payment_method'], @$this->session->data['payment_methods'])) $this->session->data['payment_method'] = $this->session->data['payment_methods'][$this->request->post['payment_method']];
         if (!@$this->session->data['shipping_method'] && is_array(@$this->session->data['shipping_methods']) && in_array(@$this->request->post['shipping_method'], @$this->session->data['shipping_methods'])) $this->session->data['shipping_method'] = $this->session->data['shipping_methods'][$this->request->post['shipping_method']];
-
+        $shippingCost = 0;
         if (isset($this->session->data['payment_method']['code'])) {
             if ($this->session->data['payment_method']['code'] === 'cod') {
                 $shippingCost = $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'];

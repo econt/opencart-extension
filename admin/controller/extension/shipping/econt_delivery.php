@@ -113,6 +113,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         /*OneStepCheckout*/
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/payment_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/shipping_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/cart/before', 'extension/shipping/econt_delivery/updateShippingPrice');
+//        end
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/guest/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/register/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/confirm/after', 'extension/shipping/econt_delivery/afterCheckoutConfirm');
@@ -179,7 +181,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         ?>
         <style>
             #econt-delivery-create-label-modal .modal-dialog {
-                width: 600px;
+                width: 96%;
             }
             #econt-delivery-create-label-modal .modal-body {
                 padding: 0;
@@ -187,7 +189,13 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             #econt-delivery-create-label-modal iframe {
                 border: 0;
                 width: 100%;
-                height: 355px;
+                height: 87vh;
+            }
+
+            @media screen and (min-width: 800px) {
+                #econt-delivery-create-label-modal .modal-dialog {
+                    width: 700px;
+                }
             }
         </style>
         <div id="econt-delivery-create-label-modal" class="modal fade" role="dialog">

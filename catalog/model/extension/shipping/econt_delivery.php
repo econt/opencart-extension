@@ -48,8 +48,10 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 $phone = $this->session->data['guest']['telephone'];
             }
 
+            $keys = explode('@',$this->config->get('shipping_econt_delivery_private_key'));
+
             @$frameParams = array(
-                'id_shop' => intval(@reset(explode('@',$this->config->get('shipping_econt_delivery_private_key')))),
+                'id_shop' => intval(@reset($keys)),
                 'order_weight' => $this->cart->getWeight(),
                 'order_total' => $this->getOrderTotal(),
                 'order_currency' => $this->session->data['currency'],
@@ -81,28 +83,158 @@ class ModelExtensionShippingEcontDelivery extends Model {
                     var $econtRadio = $('input:radio[value=\'econt_delivery.econt_delivery\']');
 
                     <?php if ($this->oneStepCheckoutModuleEnabled) { ?>
-                        $econtRadio.closest('tr').after('<tr id="econt_delivery_row"><td colspan="3"><div id="econt_iframe_wrapper"></div></td></tr>');
+                        var useShipping = false;
+                        var useShippingCheckBox = $('#shipping')[0];
+                        var customerInfoUrl = "<?php echo $frameURL?>";
+                        var splited = customerInfoUrl.split('&').map(param => param.split('='));
+                        var fieldsData = [];
+                        var calculateButtonText = '<?php echo $this->language->get('text_delivery_method_calculate_button');?>';
+                        var changeInfoButtonText = '<?php echo $this->language->get('text_delivery_method_change_button');?>';
+                        var hasPrice = false;
+
+                        if (useShippingCheckBox.checked === false) {
+                            useShipping = true;
+                        }
+
+                        var fields = [
+                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname',
+                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname',
+                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-country',
+                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1',
+                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city',
+                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-zone',
+                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode',
+                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company',
+                            '#input-payment-telephone',
+                            '#input-payment-email'
+                        ]
+
+                        var getFields = function () {
+                            fields.forEach( function( field ) {
+                                fieldsData[field] = $( field ).val()
+                                if (field.indexOf('-zone') > -1) {
+                                    var select = $(field)[0].options;
+                                    var selected = $( field ).val();
+                                    var selectedText = '';
+                                    for (var i = 0; i < select.length; i++) {
+                                        if (select[i].value === selected) {
+                                            selectedText = select[i].text
+                                        }
+                                    }
+
+                                    fieldsData[field] = selectedText;
+                                }
+                            });
+                            return fieldsData;
+                        }
+
+                        var getUrl = function(data) {
+                            var name;
+                            var company;
+                            var dataArray = [];
+
+                            for (var x = 0; x < 4; x++){
+                                dataArray.push(splited[x]);
+                            }
+
+                            // if (data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company'].length) {
+                                company = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company'];
+                                name = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname'] + ' ' + data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname'];
+                            // } else {
+                            //     name = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname'] + ' ' + data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname'];
+                            //     company = ''
+                            // }
+
+                            var additional = [
+                                ["customer_company", company],
+                                ["customer_name", name],
+                                ["customer_phone", data['#input-payment-telephone']],
+                                ["customer_email", data['#input-payment-email']],
+                                ["customer_city_name", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city']],
+                                ["customer_post_code", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode']],
+                                ["customer_address", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1']],
+                                ["customer_address", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1']],
+                                ['ignore_history', true]
+                            ]
+
+                            additional.forEach( entry => {
+                                dataArray.push(entry)
+                            });
+
+                            console.log(data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company'].length)
+
+                            return dataArray.map(param => param.join('=')).join('&');
+                        }
+
+                        var setButtonText = function () {
+                            hasPrice = true;
+                            $('#openEcontModal').text(changeInfoButtonText);
+                        }
+
+                        $econtRadio.closest('tr').after('' +
+                            '<tr id="econt_delivery_row">' +
+                                '<td colspan="3">' +
+                                    '<div id="econt_iframe_wrapper"><div id="econt_iframe_inner"><span id="closeEcontModal" class="close-econt-modal">x</span></div></div>' +
+                                    '<div>' +
+                                        '<button type="button" id="openEcontModal" ' +
+                                            'class="btn btn-primary" style="float: right;">' + ( hasPrice ? changeInfoButtonText : calculateButtonText ) + '</button>' +
+                                    '</div>' +
+                                '</td>' +
+                            '</tr>' +
+                        '');
+
+                        $('#closeEcontModal').on('click', function () {
+                            $("#econt_iframe_wrapper").css('display', 'none')
+                            $('html body').removeClass('background-muted')
+                            if ($frame) {
+                                $frame.remove();
+                                $frame = null;
+                            }
+                        })
+
+                        $('#openEcontModal').on('click', function () {
+                            var preparedFields = getFields();
+                            var url = getUrl(preparedFields);
+
+                            if(!$frame) {
+                                $frame = $('<iframe id="econtDeliverFrame" src="' + url + '"></iframe>');
+                                $("#econt_iframe_inner").append($frame);
+                            }
+
+                            $("#econt_iframe_wrapper").css('display', 'block');
+                            $('html body').addClass('background-muted')
+                        })
+
                     <?php } ?>
 
                     var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>')
-                        .appendTo(<?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_wrapper")' : '$econtRadio.parent().parent()'; ?>);
+                        .appendTo(<?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_inner")' : '$econtRadio.parent().parent()'; ?>);
                     $econtRadio.parent().contents().each(function(i,el){if(el.nodeType == 3) el.nodeValue = '';});//zabursvane na originalniq text
                     var $econtLabelText = $('<span></span>').text(<?php echo json_encode($deliveryMethodTxt)?>);
-                    $econtRadio.after($econtLabelText);
                     var shippingInfo = null;
                     var $frame = null;
+                    $econtRadio.after($econtLabelText);
                     $econtRadio.click(function(){
                         if(!$frame) {
-                            $frame = $('<iframe style="width:100%;height:612px;border:none;margin-top: 15px;" src="<?php echo $frameURL?>"></iframe>');
-                            <?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_wrapper").append($frame)' : '$econtRadio.parent().parent().append($frame)'; ?>;
+                            $frame = $('<iframe id="econtDeliverFrame" src="<?php echo $frameURL?>"></iframe>');
+                            <?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_inner").append($frame)' : '$econtRadio.parent().parent().append($frame)'; ?>
                         }
                     });
                     $('input:radio[name=shipping_method]').change(function(){
                         if(!$econtRadio.is(':checked')) {
+                        <?php if (!$this->oneStepCheckoutModuleEnabled) { ?>
                             $frame.remove();
                             $frame = null;
+                        <?php } else { ?>
+                            $('#econt_delivery_row').css('display', 'none')
+                        <?php } ?>
+                        } else {
+                            <?php if ($this->oneStepCheckoutModuleEnabled) { ?>
+                                $('#econt_delivery_row').css('display', 'table-row')
+                            <?php } ?>
                         }
                     });
+
                     if($econtRadio.is(':checked')) $econtRadio.trigger('click');
                     $(window).unbind('message.econtShipping');
                     $(window).bind('message.econtShipping',function(e){
@@ -110,21 +242,131 @@ class ModelExtensionShippingEcontDelivery extends Model {
                             if(e.originalEvent.data.shipment_error) {
                                 alert(e.originalEvent.data.shipment_error)
                             } else {
+                                <?php if ($this->oneStepCheckoutModuleEnabled) { ?>
+                                    setButtonText()
+                                <?php } ?>
                                 shippingInfo = e.originalEvent.data;
+                                <?php echo $this->oneStepCheckoutModuleEnabled ? "$('#econt_iframe_wrapper').css('display', 'none');\n $('html body').removeClass('background-muted');" : ''; ?>
                                 $frame.remove();
                                 $frame = null;
                                 console.log(shippingInfo);
-                                var labelTxt = <?php echo json_encode($deliveryMethodTxt)?> + ' - ' + shippingInfo.shipping_price + shippingInfo.shipping_price_currency_sign;
+                                var labelTxt = <?php echo $this->oneStepCheckoutModuleEnabled ? '' : json_encode($deliveryMethodTxt . ' - ') ?> + shippingInfo.shipping_price + ' ' + shippingInfo.shipping_price_currency_sign;
                                 if(shippingInfo.shipping_price != shippingInfo.shipping_price_cod) {
-                                    labelTxt += ' (+ ' + (shippingInfo.shipping_price_cod - shippingInfo.shipping_price).toFixed(2) + shippingInfo.shipping_price_currency_sign + ' ' + <?php echo json_encode($deliveryMethodPriceCD)?> + ')'
+                                    labelTxt += ' (+ ' + (shippingInfo.shipping_price_cod - shippingInfo.shipping_price).toFixed(2) + ' ' + shippingInfo.shipping_price_currency_sign + ' ' + <?php echo json_encode($deliveryMethodPriceCD)?> + ')'
                                 }
-                                $econtLabelText.text(labelTxt);
                                 $hiddenTextArea.val(JSON.stringify(e.originalEvent.data));
+                                <?php
+                                    if ($this->oneStepCheckoutModuleEnabled) { ?>
+                                        var date = new Date();
+                                        date.setTime(date.getTime() + (5 * 60 * 1000));
+                                        document.cookie = "econt_delivery_temporary_shipping_price=" + JSON.stringify(e.originalEvent.data) + "; expires=" + date;
+                                        loadCart();
+
+                                        var label = $('label[for="econt_delivery.econt_delivery"]').last();
+                                        label.empty().append(labelTxt);
+
+                                        /**
+                                         * Set billing form fields
+                                         */
+                                        var full_name = []
+                                        var company = ''
+                                        var data = e.originalEvent.data
+
+                                        if ( data['face'] != null ) {
+                                            full_name = data['face'].split( ' ' );
+                                            company = data['name'];
+                                        } else {
+                                            full_name = data['name'].split( ' ' );
+                                        }
+                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname' ) )
+                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname' ).value = full_name[0];
+                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname' ) )
+                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname' ).value = full_name[1];
+                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company' ) )
+                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company' ).value = company;
+                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1' ) )
+                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1' ).value = data['address'] != '' ? data['address'] : data['office_name'];
+                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city' ) )
+                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city' ).value = data['city_name'];
+                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode' ) )
+                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode' ).value = data['post_code'];
+                                        if ( document.getElementById( 'input-payment-telephone' ) )
+                                            document.getElementById( 'input-payment-telephone' ).value = data['phone'];
+                                        if ( document.getElementById( 'input-payment-email' ) )
+                                            document.getElementById( 'input-payment-email' ).value = data['email'];
+                                <?php } else {
+                                    ?>$econtLabelText.text(labelTxt);<?php
+                                } ?>
                             }
                         }
                     });
                 })(jQuery);
             </script>
+
+            <?php
+            if ($this->oneStepCheckoutModuleEnabled) {
+                ?>
+                <style>
+                    #econt_iframe_wrapper {
+                        width: 100vw;
+                        height: 100vh;
+                        background: rgba(0,0,0,.5);
+                        display: none;
+                        position: fixed;
+                        z-index: 3;
+                        top: 0;
+                        left: 0;
+                    }
+
+                    #econt_iframe_inner {
+                        position: absolute;
+                        background: #ffffff;
+                        width: 100vw;
+                        height: 100%;
+                        padding: 50px 10px;
+                    }
+
+                    #econtDeliverFrame {
+                        position: relative;
+                        width: 100%;
+                        height: 100%;
+                        border: none;
+                        margin-top: 0;
+                    }
+
+                    .close-econt-modal {
+                        float: right;
+                        font-size: 24px;
+                        cursor: pointer;
+                        position: relative;
+                        bottom: 15px;
+                    }
+
+                    .background-muted {
+                        overflow-y: hidden;
+                        z-index: -1;
+                    }
+
+                    @media screen and (min-width: 650px) {
+                        #econt_iframe_inner {
+                            top: 10%;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            width: 80vw;
+                            height: 80%;
+                            padding: 25px;
+                            max-width: 800px;
+                        }
+
+                        #econtDeliverFrame {
+                            margin-top: -15px;
+                            max-height: 85vh;
+                        }
+                    }
+                </style>
+                <?php
+            }
+            ?>
             <?php
         }
 
