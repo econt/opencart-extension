@@ -17,7 +17,11 @@ class ModelExtensionPaymentEcontPayment extends Model {
 			$status = false;
 		}
 
-        if ($this->session->data['shipping_method']['code'] != 'econt_delivery.econt_delivery') {
+		parse_str(explode('?', $_SERVER["HTTP_REFERER"])[1], $route);
+
+        if (array_key_exists('shipping_method', $this->session->data) && $this->session->data['shipping_method']['code'] != 'econt_delivery.econt_delivery') {
+            $status = false;
+        } elseif (count($route) && $route['route'] === 'sale/order/edit') {
             $status = false;
         }
 
