@@ -59,6 +59,9 @@ $_['text_merchant_connected']		 = 'Connected Merchant ID: ';
 $_['text_enable_button']			 = 'We recommend offering PayPal Express Shortcut to maximise checkout conversion, this allows customers to use their PayPal address book and <strong>checkout is as little as three taps</strong> from the basket page. Click enable to install the extension and access the layout manager, you will ned to add "PayPal (Powered by Braintree) Button" to the checkout layout';
 $_['text_3ds_ssl']		 			 = '3D Secure requires the store to be using an SSL certificate';
 $_['text_unlink']		 			 = 'Delete link';
+$_['text_token_yes']                                = 'Yes';
+$_['text_token_no']                                 = 'No';
+$_['text_order_list_econt_payment_column_label']    = 'Quaranteed with Econt';
 
 // Column
 $_['column_void']					 = 'Void';

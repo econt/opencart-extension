@@ -63,7 +63,6 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 'customer_city_name' => $this->session->data['shipping_address']['city'],
                 'customer_post_code' => $this->session->data['shipping_address']['postcode'],
                 'customer_address' => $this->session->data['shipping_address']['address_1'].' '.$this->session->data['shipping_address']['address_2'],
-//                'confirm_txt' => 'Смятай'
             );
             $officeCode = trim(@$this->session->data['econt_delivery']['customer_info']['office_code']);
             if (!empty($officeCode)) $frameParams['customer_office_code'] = $officeCode;
@@ -91,8 +90,11 @@ class ModelExtensionShippingEcontDelivery extends Model {
                         var calculateButtonText = '<?php echo $this->language->get('text_delivery_method_calculate_button');?>';
                         var changeInfoButtonText = '<?php echo $this->language->get('text_delivery_method_change_button');?>';
                         var hasPrice = false;
+                        var userIsLogged = false;
 
-                        if (useShippingCheckBox.checked === false) {
+                        <?php if($this->customer->isLogged()) echo 'userIsLogged = true;'; ?>
+
+                        if (userIsLogged === false && useShippingCheckBox.checked === false) {
                             useShipping = true;
                         }
 
@@ -281,7 +283,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
                                         if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname' ) )
                                             document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname' ).value = full_name[0];
                                         if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname' ) )
-                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname' ).value = full_name[1];
+                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname' ).value = full_name[1] ? full_name[1] : '';
                                         if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company' ) )
                                             document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company' ).value = company;
                                         if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1' ) )
@@ -365,7 +367,15 @@ class ModelExtensionShippingEcontDelivery extends Model {
                     }
                 </style>
                 <?php
-            }
+            } else { ?>
+                <style>
+                    #econtDeliverFrame {
+                        width: 80%;
+                        height: 750px;
+                        border: 0;
+                    }
+                </style>
+            <?php }
             ?>
             <?php
         }
@@ -443,7 +453,8 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 if (!empty($this->session->data['econt_delivery']['customer_info'])) $this->db->query(sprintf("
                     INSERT INTO `%s`.`%secont_delivery_customer_info`
                     SET id_order = {$orderId},
-                        customer_info = '%s'
+                        customer_info = '%s',
+                        payment_token = {$paymentToken}
                     ON DUPLICATE KEY UPDATE
                         customer_info = VALUES(customer_info)
                 ",
@@ -454,13 +465,25 @@ class ModelExtensionShippingEcontDelivery extends Model {
             } else {
                 if (!($orderId = intval($this->session->data['order_id']))) return;
             }
+        } elseif ($this->request->get['route'] === 'api/order/edit') {
+            if (!empty($this->session->data['econt_delivery']['customer_info'])) {
+//                    $token = $paymentToken === '' ? 'canceled' : $paymentToken;
+                $this->db->query(sprintf("
+                        UPDATE `%s`.`%secont_delivery_customer_info`
+                        SET payment_token = '{$paymentToken}'
+                        WHERE id_order = {$orderId}
+                    ",
+                    DB_DATABASE,
+                    DB_PREFIX
+                ));
+            }
         }
 
         $orderData = $this->model_checkout_order->getOrder($orderId);
         if (empty($orderData) || $orderData['shipping_code'] !== 'econt_delivery.econt_delivery') return;
 
         $this->load->model('extension/shipping/econt_delivery');
-        $customerInfo = $this->session->data['econt_delivery']['customer_info'];
+        $customerInfo = isset($this->session->data['econt_delivery']) ? $this->session->data['econt_delivery']['customer_info'] : [];
         if (empty($customerInfo)) {
             $customerInfo = $this->db->query(sprintf("
                 SELECT

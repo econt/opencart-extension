@@ -40,4 +40,33 @@ class ModelExtensionPaymentEcontPayment extends Model {
 
 		return $method_data;
 	}
+
+    public function updateOrder($orderId, $token = '')
+    {
+        if (isset($this->session->data['econt_payment_paymentToken'])) {
+            unset($this->session->data['econt_payment_paymentToken']);
+        }
+
+        return $this->db->query(sprintf("
+                    INSERT INTO `%s`.`%secont_delivery_customer_info`
+                    SET id_order = {$orderId},
+                        customer_info = '%s',
+                        payment_token = '{$token}'
+                    ON DUPLICATE KEY UPDATE
+                        customer_info = VALUES(customer_info)
+                ",
+            DB_DATABASE,
+            DB_PREFIX,
+            $this->db->escape(json_encode($this->session->data['econt_delivery']['customer_info']))
+        ));
+
+//        return $this->db->query(sprintf("
+//                    UPDATE `%s`.`%secont_delivery_customer_info`
+//                    SET payment_token = '{$token}'
+//                    WHERE id_order = {$orderId}
+//                ",
+//            DB_DATABASE,
+//            DB_PREFIX
+//        ));
+	}
 }

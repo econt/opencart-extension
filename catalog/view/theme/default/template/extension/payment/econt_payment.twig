@@ -1,32 +1,92 @@
+{% if loadView %}
+    <style>
+        .econt-rounded-button {
+            box-sizing: border-box;
+            border: 0;
+            overflow: visible;
+            -webkit-appearance: button;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            display: inline-block;
+            text-align: center;
+            text-decoration: none;
+            white-space: pre;
+            cursor: pointer;
+            background-color: #003F85;
+            border-radius: 40px;
+            line-height: 43px;
+            padding: 0 40px;
+            color: #fff;
+            font-weight: 300;
+            font-size: 15px;
+            transition: background ease-in-out .15s,border-color ease-in-out .15s,box-shadow ease-in-out .15s,color ease-in-out .15s;
+        }
+
+        .econt-rounded-button:hover {
+            color: #fff;
+        }
+
+        .econt-link-button {
+            font-size: 15px;
+            margin-left: 25px;
+        }
+
+        .econt-link-button::after {
+            content: '';
+            display: inline-block;
+            margin-left: 1px;
+            width: 14px;
+            height: 10px;
+            background: url(https://delivery.econt.com/static/img/link-arrow.svg) center no-repeat;
+            background-size: 13px 13px;
+        }
+
+        .econt-buttons-wrapper {
+            margin-top: 30px;
+        }
+    </style>
+{{ header }}
+<div id="information-information" class="container">
+    <div class="row">{{ column_left }}
+        {% if column_left and column_right %}
+            {% set class = 'col-sm-6' %}
+        {% elseif column_left or column_right %}
+            {% set class = 'col-sm-9' %}
+        {% else %}
+            {% set class = 'col-sm-12' %}
+        {% endif %}
+        <div id="content" class="{{ class }} text-center">
+            {{ content_top }}
+            <img src="/catalog/view/theme/default/image/pay_with_econt_logo.svg" alt="Econt" style="width: 30%">
+            <h3>{{ heading_title }}</h3>
+            <h1 class="text-{{ success ? 'success' : 'danger'}}">
+                {{ statusMessage }}
+            </h1>
+            <div class="econt-buttons-wrapper">
+                <a href="{{ button.href }}" class="econt-rounded-button">{{ button.text }}</a>
+                {% if not success %}
+                    <a href="{{ link.href }}" class="econt-link-button">{{ link.text }}</a>
+                {% endif %}
+            </div>
+            {{ content_bottom }}
+        </div>
+        {{ column_right }}
+    </div>
+</div>
+<script type="text/javascript"><!--
+    setTimeout( function () {
+        window.location.href = '{{ home }}'
+    }, 10000)
+--></script>
+{{ footer }}
+{% else %}
 <div class="buttons">
   <div class="pull-right">
     <a href="{{ econt_payment_paymentURI }}" id="button-confirm" data-loading-text="{{ text_loading }}" class="btn btn-primary">
-		{{ button_confirm }}
+        {{ buttonText }}
 	</a>
-{#    <input type="button" value="{{ button_confirm }}" id="button-confirm" data-loading-text="{{ text_loading }}" class="btn btn-primary" />#}
   </div>
 </div>
-<script type="text/javascript"><!--
-// $('#button-confirm').on('click', function(e) {
-// 	e.preventDefault();
-// 	e.stopPropagation();
-// 	$.ajax({
-// 		url: 'index.php?route=extension/payment/econt_payment/confirm',
-// 		dataType: 'json',
-// 		beforeSend: function() {
-// 			$('#button-confirm').button('loading');
-// 		},
-// 		complete: function() {
-// 			$('#button-confirm').button('reset');
-// 		},
-// 		success: function(json) {
-// 			if (json['redirect']) {
-// 				location = json['redirect'];
-// 			}
-// 		},
-// 		error: function(xhr, ajaxOptions, thrownError) {
-// 			alert(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
-// 		}
-// 	});
-// });
-//--></script>
+{% endif %}

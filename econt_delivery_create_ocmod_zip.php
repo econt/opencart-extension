@@ -16,9 +16,9 @@ foreach (new RegexIterator(new RecursiveIteratorIterator(new \RecursiveDirectory
 /**  $zip->addFromString(DIRECTORY_SEPARATOR . 'install.xml', "<?xml version=\"1.0\" encoding=\"utf-8\"?> */
 $zip->addFromString('install.xml', "<?xml version=\"1.0\" encoding=\"utf-8\"?>
 <modification>
-    <code>econt_delivery_" . trim(`git rev-parse --short HEAD`) . "</code>
-    <name>Econt Delivery</name>
-    <version>1.2.1</version>
+    <code>econt_payment_" . trim(`git rev-parse --short HEAD`) . "</code>
+    <name>Pay With Econt</name>
+    <version>1.3.2</version>
     <author>Econt Express</author>
     <link>https://delivery.econt.com</link>
 </modification>");
