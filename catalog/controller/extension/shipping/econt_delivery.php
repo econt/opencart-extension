@@ -23,7 +23,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         if (isset($this->session->data['econt_payment_paymentToken'])) {
             $token = $this->session->data['econt_payment_paymentToken'];
         } else {
-            $token = 'canceled';
+            $token = '';
         }
 
         $this->load->model('extension/shipping/econt_delivery');
@@ -31,6 +31,10 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $order = $aData['order'];
         $orderData = $aData['orderData'];
         $customerInfo = $aData['customerInfo'];
+
+        if ($token == '' && $this->request->get['route'] === 'api/order/edit' && isset($order['paymentToken'])) {
+            $order['paymentToken'] = 'canceled';
+        }
 
         $this->load->model('setting/setting');
         $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');

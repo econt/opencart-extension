@@ -27,8 +27,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
     private $systemUrls = array(
         'production' => 'https://delivery.econt.com',
-//        'testing' => 'http://delivery.demo.econt.com'
-        'testing' => 'http://delivery-ux.econt.com'
+        'testing' => 'http://delivery.demo.econt.com'
+//        'testing' => 'http://delivery-ux.econt.com'
     );
     private $trackShipmentUrl = 'https://www.econt.com/services/track-shipment';
 
@@ -114,6 +114,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/payment_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/shipping_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/cart/before', 'extension/shipping/econt_delivery/updateShippingPrice');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/payment/cod/confirm/before', 'extension/shipping/econt_delivery/afterCheckoutConfirm');
 //        end
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/guest/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/register/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
