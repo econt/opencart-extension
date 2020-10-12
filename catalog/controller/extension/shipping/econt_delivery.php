@@ -20,119 +20,17 @@
 class ControllerExtensionShippingEcontDelivery extends Controller {
 
     public function afterModelCheckoutOrderAddHistory(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
-        $orderId = @intval($this->request->get['order_id']);
-        if ($orderId <= 0) {
-            if ($this->request->get['route'] === 'api/order/add') {
-                $orderId = intval(reset($data));
-                if ($orderId <= 0) return;
-
-                if (!empty($this->session->data['econt_delivery']['customer_info'])) $this->db->query(sprintf("
-                    INSERT INTO `%s`.`%secont_delivery_customer_info`
-                    SET id_order = {$orderId},
-                        customer_info = '%s'
-                    ON DUPLICATE KEY UPDATE
-                        customer_info = VALUES(customer_info)
-                ",
-                    DB_DATABASE,
-                    DB_PREFIX,
-                    json_encode($this->session->data['econt_delivery']['customer_info'])
-                ));
-            } else {
-                if (!($orderId = intval($this->session->data['order_id']))) return;
-            }
+        if (isset($this->session->data['econt_payment_paymentToken'])) {
+            $token = $this->session->data['econt_payment_paymentToken'];
+        } else {
+            $token = '';
         }
-
-        $orderData = $this->model_checkout_order->getOrder($orderId);
-        if (empty($orderData) || $orderData['shipping_code'] !== 'econt_delivery.econt_delivery') return;
 
         $this->load->model('extension/shipping/econt_delivery');
-        $customerInfo = $this->session->data['econt_delivery']['customer_info'];
-        if (empty($customerInfo)) {
-            $customerInfo = $this->db->query(sprintf("
-                SELECT
-                    ci.customer_info AS customerInfo
-                FROM `%s`.`%secont_delivery_customer_info` AS ci
-                WHERE TRUE
-                    AND ci.id_order = {$orderId}
-                LIMIT 1
-            ",
-                DB_DATABASE,
-                DB_PREFIX
-            ));
-            $customerInfo = json_decode($customerInfo->row['customerInfo'], true);
-        }
-        if (!$customerInfo || empty($customerInfo['id'])) return;
-
-        $this->load->language('extension/shipping/econt_delivery');
-        $order = array(
-            'customerInfo' => array(
-                'id' => $customerInfo['id']
-            ),
-            'orderNumber' => $orderData['order_id'],
-            'shipmentDescription' => sprintf("%s #{$orderData['order_id']}", $this->language->get('text_econt_delivery_order')),
-            'status' => $orderData['order_status'],
-            'orderTime' => $orderData['date_added'],
-            'currency' => $orderData['currency_code'],
-            'cod' => ($orderData['payment_code'] === 'cod'),
-            'partialDelivery' => 1,
-            'clientSoftware' => 'DeliveryOpenCart3_v1.1',
-            'items' => array()
-        );
-
-        $productTotal = 0;
-
-        $dbp = DB_PREFIX;
-        $orderProducts = $this->db->query("
-            SELECT
-                op.*,
-                p.sku as sku,
-                p.weight + SUM(COALESCE(IF(ov.weight_prefix = '-',-ov.weight,ov.weight),0)) as weight
-            FROM {$dbp}order_product op
-            JOIN {$dbp}product p ON p.product_id = op.product_id
-            LEFT JOIN {$dbp}order_option oo ON oo.order_id = op.order_id AND oo.order_product_id = op.order_product_id
-            LEFT JOIN {$dbp}product_option_value ov ON ov.product_option_value_id = oo.product_option_value_id
-            WHERE op.order_id = ".intval($orderId)."
-            GROUP BY p.product_id
-        ");
-        $orderProducts = $orderProducts->rows;
-        if (!empty($orderProducts)) {
-            if (count($orderProducts) <= 1) {
-                $orderProduct = reset($orderProducts);
-                $order['shipmentDescription'] = $orderProduct['name'];
-            }
-            $this->load->model('catalog/product');
-            foreach ($orderProducts as $orderProduct) {
-                $orderItemPrice = floatval($orderProduct['total']) + (floatval($orderProduct['tax']) * intval($orderProduct['quantity']));
-                $order['items'][] = array(
-                    'name' => $orderProduct['name'],
-                    'SKU' => $orderProduct['sku'],
-                    'URL' => $this->url->link('product/product', http_build_query(array(
-                        'product_id' => $orderProduct['product_id']
-                    )), true),
-                    'count' => $orderProduct['quantity'],
-                    'totalPrice' => $orderItemPrice,
-                    'totalWeight' => floatval($orderProduct['weight'] * $orderProduct['quantity'])
-                );
-                $productTotal += $orderItemPrice;
-            }
-        }
-
-        $orderTotals = $this->model_checkout_order->getOrderTotals($orderData['order_id']);
-        if (!empty($orderTotals)) {
-            $orderTotal = array_reduce($orderTotals, function($total, $currentRow) {
-                if (!in_array($currentRow['code'], array('shipping', 'total'))) $total += $currentRow['value'];
-                return $total;
-            }, 0);
-            $discount = $orderTotal - $productTotal;
-            if ($discount != 0) {
-                $order['partialDelivery'] = 0;
-                $order['items'][] = array(
-                    'name' => $this->language->get('text_econt_delivery_order_discount'),
-                    'count' => 1,
-                    'totalPrice' => $discount
-                );
-            }
-        }
+        $aData = $this->model_extension_shipping_econt_delivery->prepareOrder($token);
+        $order = $aData['order'];
+        $orderData = $aData['orderData'];
+        $customerInfo = $aData['customerInfo'];
 
         $this->load->model('setting/setting');
         $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
@@ -189,6 +87,30 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     public function afterViewCheckoutBilling(/** @noinspection PhpUnusedParameterInspection */ $route, $templateParams, $html) {
         return preg_replace("#<div (class=\"checkbox\">\\s+<label>\\s+<input\\s+type=\"checkbox\"\\s+name=\"shipping_address\")#i",'<div style="display:none !important;" \1',$html);
     }
+
+    public function updateShippingPrice($data)
+    {
+        if($this->session->data['shipping_method']['code'] != 'econt_delivery.econt_delivery') {
+            return;
+        }
+
+        $paymentData = null;
+
+        if (array_key_exists("econt_delivery_temporary_shipping_price", $_COOKIE)) {
+            $paymentData = json_decode($_COOKIE["econt_delivery_temporary_shipping_price"]);
+        }
+
+        $paymentMethod = $this->session->data['payment_method']['code'];
+
+        if ($paymentData && $paymentMethod === 'cod') {
+            $this->session->data['shipping_method']['cost'] = $paymentData->shipping_price_cod;
+        } elseif ($paymentData && $paymentMethod === 'econt_payment') {
+            $this->session->data['shipping_method']['cost'] = $paymentData->shipping_price_cod_e;
+        } else {
+            $this->session->data['shipping_method']['cost'] = $paymentData ? $paymentData->shipping_price : 0;
+        }
+    }
+
     public function beforeCartSaveShipping() {
         if($this->request->request['shipping_method'] == 'econt_delivery.econt_delivery') {
             $this->session->data['econt_delivery']['customer_info'] = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']),true);
@@ -232,9 +154,18 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     }
 
     public function beforeCartSavePayment() {
+        if (!array_key_exists('econt_delivery', $this->session->data)) {
+            return;
+        }
+
         if($this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
-            $cod = @$this->request->request['payment_method'] == 'cod' ? '_cod' : '';
+            $postfix_map = [
+                'cod' => '_cod',
+                'econt_payment' => '_cod_e'
+            ];
+            $cod = @array_key_exists($this->request->request['payment_method'], $postfix_map) ? $postfix_map[$this->request->request['payment_method']] : '';
             $this->session->data['shipping_method']['cost'] = $this->session->data['econt_delivery']['customer_info']['shipping_price'.$cod];
+
         }
     }
 
@@ -306,7 +237,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             }
             $this->session->data['econt_delivery']['customer_info'] = $this->request->post;
         } else {
-            if (empty($this->session->data['econt_delivery']['customer_info']) && $orderId > 0) {
+            if (array_key_exists('econt_delivery', $this->session->data) && empty($this->session->data['econt_delivery']['customer_info']) && $orderId > 0) {
                 $customerInfo = $this->db->query(sprintf("
                     SELECT
                         ci.customer_info AS customerInfo
@@ -325,9 +256,17 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         if (!@$this->session->data['payment_method'] && is_array(@$this->session->data['payment_methods']) && in_array(@$this->request->post['payment_method'], @$this->session->data['payment_methods'])) $this->session->data['payment_method'] = $this->session->data['payment_methods'][$this->request->post['payment_method']];
         if (!@$this->session->data['shipping_method'] && is_array(@$this->session->data['shipping_methods']) && in_array(@$this->request->post['shipping_method'], @$this->session->data['shipping_methods'])) $this->session->data['shipping_method'] = $this->session->data['shipping_methods'][$this->request->post['shipping_method']];
+        $shippingCost = 0;
+        if (isset($this->session->data['payment_method']['code'])) {
+            if ($this->session->data['payment_method']['code'] === 'cod') {
+                $shippingCost = $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'];
+            } elseif ($this->session->data['payment_method']['code'] === 'econt_payment') {
+                $shippingCost = @$this->session->data['econt_delivery']['customer_info']['shipping_price_cod_e'];
+            } else {
+                $shippingCost = @$this->session->data['econt_delivery']['customer_info']['shipping_price'];
+            }
+        }
 
-        if (isset($this->session->data['payment_method']['code']) && $this->session->data['payment_method']['code'] === 'cod') $shippingCost = $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'];
-        else $shippingCost = @$this->session->data['econt_delivery']['customer_info']['shipping_price'];
         $shippingCost = floatval($shippingCost);
 
         if (isset($this->session->data['shipping_methods']['econt_delivery'])) $this->session->data['shipping_methods']['econt_delivery']['quote']['econt_delivery']['cost'] = $shippingCost;

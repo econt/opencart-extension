@@ -27,7 +27,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
     private $systemUrls = array(
         'production' => 'https://delivery.econt.com',
-        'testing' => 'http://delivery.demo.econt.com'
+//        'testing' => 'http://delivery.demo.econt.com'
+        'testing' => 'http://delivery-ux.econt.com'
     );
     private $trackShipmentUrl = 'https://www.econt.com/services/track-shipment';
 
@@ -112,6 +113,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         /*OneStepCheckout*/
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/payment_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/shipping_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/cart/before', 'extension/shipping/econt_delivery/updateShippingPrice');
+//        end
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/guest/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/register/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/confirm/after', 'extension/shipping/econt_delivery/afterCheckoutConfirm');
@@ -126,6 +129,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterModelCheckoutOrderAddHistory');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/model/sale/order/getOrder/after', 'extension/shipping/econt_delivery/afterAdminModelSaleOrderGetOrder');
     }
+
     public function uninstall() {
         $this->load->model('setting/event');
 
@@ -177,7 +181,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         ?>
         <style>
             #econt-delivery-create-label-modal .modal-dialog {
-                width: 600px;
+                width: 96%;
             }
             #econt-delivery-create-label-modal .modal-body {
                 padding: 0;
@@ -185,7 +189,13 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             #econt-delivery-create-label-modal iframe {
                 border: 0;
                 width: 100%;
-                height: 355px;
+                height: 87vh;
+            }
+
+            @media screen and (min-width: 800px) {
+                #econt-delivery-create-label-modal .modal-dialog {
+                    width: 700px;
+                }
             }
         </style>
         <div id="econt-delivery-create-label-modal" class="modal fade" role="dialog">
