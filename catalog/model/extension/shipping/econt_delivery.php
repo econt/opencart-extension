@@ -186,20 +186,20 @@ class ModelExtensionShippingEcontDelivery extends Model {
                         $('#closeEcontModal').on('click', function () {
                             $("#econt_iframe_wrapper").css('display', 'none')
                             $('html body').removeClass('background-muted')
-                            if ($frame) {
-                                $frame.remove();
-                                $frame = null;
-                            }
+
                         })
 
                         $('#openEcontModal').on('click', function () {
                             var preparedFields = getFields();
                             var url = getUrl(preparedFields);
 
-                            if(!$frame) {
-                                $frame = $('<iframe id="econtDeliverFrame" src="' + url + '"></iframe>');
-                                $("#econt_iframe_inner").append($frame);
+                            if ($frame) {
+                                $frame.remove();
+                                $frame = null;
                             }
+
+                            $frame = $('<iframe id="econtDeliverFrame" src="' + url + '"></iframe>');
+                            $("#econt_iframe_inner").append($frame);
 
                             $("#econt_iframe_wrapper").css('display', 'block');
                             $('html body').addClass('background-muted')

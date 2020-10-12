@@ -27,8 +27,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
     private $systemUrls = array(
         'production' => 'https://delivery.econt.com',
-//        'testing' => 'http://delivery.demo.econt.com'
-        'testing' => 'http://delivery-ux.econt.com'
+        'testing' => 'http://delivery.demo.econt.com'
+//        'testing' => 'http://delivery-ux.econt.com'
     );
     private $trackShipmentUrl = 'https://www.econt.com/services/track-shipment';
 
