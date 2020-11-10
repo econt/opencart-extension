@@ -365,6 +365,17 @@ class ModelExtensionShippingEcontDelivery extends Model {
                     }
                 </style>
                 <?php
+            } else {
+                ?>
+                <style>
+                    #econtDeliverFrame {
+                        width:100%;
+                        height:612px;
+                        border:none;
+                        margin-top: 15px;
+                    }
+                </style>
+                <?php
             }
             ?>
             <?php
