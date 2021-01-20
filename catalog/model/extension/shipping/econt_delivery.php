@@ -225,7 +225,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
                     $('input:radio[name=shipping_method]').change(function(){
                         if(!$econtRadio.is(':checked')) {
                         <?php if (!$this->oneStepCheckoutModuleEnabled) { ?>
-                            $frame.remove();
+                            if ($frame) $frame.remove();
                             $frame = null;
                         <?php } else { ?>
                             $('#econt_delivery_row').css('display', 'none')
@@ -251,7 +251,6 @@ class ModelExtensionShippingEcontDelivery extends Model {
                                 <?php echo $this->oneStepCheckoutModuleEnabled ? "$('#econt_iframe_wrapper').css('display', 'none');\n $('html body').removeClass('background-muted');" : ''; ?>
                                 $frame.remove();
                                 $frame = null;
-                                console.log(shippingInfo);
                                 var labelTxt = <?php echo $this->oneStepCheckoutModuleEnabled ? '' : json_encode($deliveryMethodTxt . ' - ') ?> + shippingInfo.shipping_price + ' ' + shippingInfo.shipping_price_currency_sign;
                                 if(shippingInfo.shipping_price != shippingInfo.shipping_price_cod) {
                                     labelTxt += ' (+ ' + (shippingInfo.shipping_price_cod - shippingInfo.shipping_price).toFixed(2) + ' ' + shippingInfo.shipping_price_currency_sign + ' ' + <?php echo json_encode($deliveryMethodPriceCD)?> + ')'

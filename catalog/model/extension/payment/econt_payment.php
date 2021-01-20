@@ -1,5 +1,6 @@
 <?php
 class ModelExtensionPaymentEcontPayment extends Model {
+
 	public function getMethod($address, $total) {
 		$this->load->language('extension/payment/econt_payment');
 
@@ -27,16 +28,25 @@ class ModelExtensionPaymentEcontPayment extends Model {
 
 		$method_data = array();
 
+        ob_start() ;?>
+            <?php $paymentLogo = trim($this->config->get('payment_econt_payment_logo')); ?>
+            <?php if (!empty($paymentLogo)): ?>
+                <br>
+                <img src="<?php echo "/catalog/view/theme/default/image/econt_payment_logo_{$paymentLogo}.png"; ?>" alt="Econt Delivery Payment Logo" style="margin-bottom: 15px;">
+                <br>
+            <?php endif; ?>
+            <?php echo trim($this->config->get('payment_econt_payment_description')); ?>
+            <?php $terms = ob_get_contents();
+        ob_end_clean();
+
 		if ($status) {
 			$method_data = array(
 				'code'       => 'econt_payment',
-				'title'      => $this->language->get('text_title'),
-				'terms'      => '',
+				'title'      => trim($this->config->get('payment_econt_payment_title')),
+				'terms'      => trim($terms),
 				'sort_order' => $this->config->get('payment_econt_payment_sort_order')
 			);
 		}
-
-//
 
 		return $method_data;
 	}

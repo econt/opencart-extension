@@ -10,7 +10,7 @@ $iterator       = new RecursiveIteratorIterator($directory_iterator, RecursiveIt
 $iterator->setMaxDepth(-1);
 
 //$regex_iterator = new RegexIterator($iterator, '/^.*econt_payment\.\w{3,}$/iJ');
-$regex_iterator = new RegexIterator($iterator, '/^.+econt_(payment|delivery)\.\w{3,}$/i');
+$regex_iterator = new RegexIterator($iterator, '/^.+econt_(payment|delivery|payment_logo_dark|payment_logo_light)\.\w{3,}$/i');
 $regex_iterator->setMode(RecursiveRegexIterator::GET_MATCH);
 $regex_iterator->setFlags(RegexIterator::USE_KEY);
 
@@ -39,7 +39,7 @@ $zip->addFromString('install.xml', "<?xml version=\"1.0\" encoding=\"utf-8\"?>
 <modification>
     <code>econt_delivery_and_payment" . trim(`git rev-parse --short HEAD`) . "</code>
     <name>Econt payment and delivery</name>
-    <version>1.4.4</version>
+    <version>1.4.5</version>
     <author>Econt Express</author>
     <link>https://delivery.econt.com</link>
 </modification>");

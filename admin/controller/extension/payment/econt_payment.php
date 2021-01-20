@@ -7,6 +7,14 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
         $this->model_setting_event->addEvent('econt_payment', 'catalog/model/extension/shipping/econt_payment/updateOrder/before', 'extension/shipping/econt_delivery/afterModelCheckoutOrderAddHistory', 1, 1);
 //        $this->model_setting_event->addEvent('econt_payment', 'catalog/model/extension/shipping/econt_payment/updateOrder/before', 'extension/shipping/econt_delivery/afterCheckoutConfirm', 1, 10);
         $this->model_setting_event->addEvent('econt_payment', 'admin/view/sale/order_list/before', 'extension/payment/econt_payment/beforeAdminViewSaleOrderListShowToken');
+
+        $this->load->model('setting/setting');
+        $this->model_setting_setting->editSetting('payment_econt_payment', array(
+            'payment_econt_payment_title' => 'Гарантирано от Еконт',
+            'payment_econt_payment_logo' => 'dark',
+            'payment_econt_payment_description' => 'Плащане с карта, при което се резервира сумата за поръчката и доставката. Плащате, когато приемете пратката. При отказ, стойността на стоката автоматично се освобождава от картата. Приспада се само доставката. Пазарувате с карта без притеснения дали ще получите средствата си обратно при връщане.'
+        ));
+
         return $this->checkIfDeliveryIsInstalled();
     }
 
@@ -89,6 +97,17 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
         } else {
             $data['payment_econt_payment_status'] = $this->config->get('payment_econt_payment_status');
         }
+
+        // payment title
+        if (isset($this->request->post['payment_econt_payment_title'])) $data['payment_econt_payment_title'] = $this->request->post['payment_econt_payment_title'];
+        else $data['payment_econt_payment_title'] = $this->config->get('payment_econt_payment_title');
+        // payment logo
+        if (isset($this->request->post['payment_econt_payment_logo'])) $data['payment_econt_payment_logo'] = $this->request->post['payment_econt_payment_logo'];
+        else $data['payment_econt_payment_logo'] = $this->config->get('payment_econt_payment_logo');
+        // payment description
+        if (isset($this->request->post['payment_econt_payment_description'])) $data['payment_econt_payment_description'] = $this->request->post['payment_econt_payment_description'];
+        else $data['payment_econt_payment_description'] = $this->config->get('payment_econt_payment_description');
+
 
         if (isset($this->request->post['payment_econt_payment_sort_order'])) {
             $data['payment_econt_payment_sort_order'] = $this->request->post['payment_econt_payment_sort_order'];
@@ -221,7 +240,7 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
                 });
             });
         </script>
-<!--        --><?php //$this->printEcontDeliveryCreateLabelWindow($eventRoute, $data) ?>
+        <?php //$this->printEcontDeliveryCreateLabelWindow($eventRoute, $data) ?>
         <?php $data['footer'] = str_replace('</body>', sprintf('%s</body>', ob_get_contents()), $data['footer']);
         ob_end_clean();
     }

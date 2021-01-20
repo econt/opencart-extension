@@ -23,3 +23,10 @@ $_['help_total']                                    = 'The checkout total the or
 
 // Error
 $_['error_permission']                              = 'Warning: You do not have permission to modify payment Cash On Delivery!';
+
+// payment
+$_['text_payment_econt_payment_title_label'] = 'Име';
+$_['text_payment_econt_payment_logo_label'] = 'Лого';
+$_['text_payment_econt_payment_logo_dark_label'] = 'Тъмно';
+$_['text_payment_econt_payment_logo_light_label'] = 'Светло';
+$_['text_payment_econt_payment_description_label'] = 'Описание';
