@@ -8,9 +8,13 @@
  * @property Config $config
  * @property Language $language
  * @property Session $session
- * @property ModelSettingSetting $model_setting_setting
  * @property \Cart\Cart $cart
- * @property ModelAccountOrder model_account_order
+ * @property Request $request
+ * @property Url $url
+ *
+ * @property ModelSettingSetting $model_setting_setting
+ * @property ModelAccountOrder $model_account_order
+ * @property ModelCheckoutOrder $model_checkout_order
  */
 class ModelExtensionShippingEcontDelivery extends Model {
 
@@ -72,7 +76,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
             $this->load->model('setting/setting');
             $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
             $deliveryBaseURL = $settings['shipping_econt_delivery_system_url'];
-            $frameURL = $deliveryBaseURL.'/customer_info.php?'.http_build_query($frameParams,null,'&');
+            $frameURL = $deliveryBaseURL.'/customer_info.php?'. http_build_query($frameParams, null, '&');
             $deliveryMethodTxt = $this->language->get('text_delivery_method_description');
             $deliveryMethodPriceCD = $this->language->get('text_delivery_method_description_cd');
 
@@ -162,8 +166,6 @@ class ModelExtensionShippingEcontDelivery extends Model {
                             additional.forEach( entry => {
                                 dataArray.push(entry)
                             });
-
-                            console.log(data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company'].length)
 
                             return dataArray.map(param => param.join('=')).join('&');
                         }
@@ -441,19 +443,17 @@ class ModelExtensionShippingEcontDelivery extends Model {
         }, 0);
     }
 
-    public function prepareOrder($paymentToken = '')
-    {
+    public function prepareOrder() {
         $orderId = @intval($this->request->get['order_id']);
         if ($orderId <= 0) {
             if ($this->request->get['route'] === 'api/order/add') {
                 $orderId = intval(reset($data));
-                if ($orderId <= 0) return;
+                if ($orderId <= 0) return null;
 
                 if (!empty($this->session->data['econt_delivery']['customer_info'])) $this->db->query(sprintf("
                     INSERT INTO `%s`.`%secont_delivery_customer_info`
                     SET id_order = {$orderId},
-                        customer_info = '%s',
-                        payment_token = {$paymentToken}
+                        customer_info = '%s'
                     ON DUPLICATE KEY UPDATE
                         customer_info = VALUES(customer_info)
                 ",
@@ -462,31 +462,21 @@ class ModelExtensionShippingEcontDelivery extends Model {
                     json_encode($this->session->data['econt_delivery']['customer_info'])
                 ));
             } else {
-                if (!($orderId = intval($this->session->data['order_id']))) return;
-            }
-        } elseif ($this->request->get['route'] === 'api/order/edit') {
-            if (!empty($this->session->data['econt_delivery']['customer_info'])) {
-//                    $token = $paymentToken === '' ? 'canceled' : $paymentToken;
-                $this->db->query(sprintf("
-                        UPDATE `%s`.`%secont_delivery_customer_info`
-                        SET payment_token = '{$paymentToken}'
-                        WHERE id_order = {$orderId}
-                    ",
-                    DB_DATABASE,
-                    DB_PREFIX
-                ));
+                if (!($orderId = intval($this->session->data['order_id']))) return null;
             }
         }
 
         $orderData = $this->model_checkout_order->getOrder($orderId);
-        if (empty($orderData) || $orderData['shipping_code'] !== 'econt_delivery.econt_delivery') return;
+        if (empty($orderData) || $orderData['shipping_code'] !== 'econt_delivery.econt_delivery') return null;
 
         $this->load->model('extension/shipping/econt_delivery');
         $customerInfo = isset($this->session->data['econt_delivery']) ? $this->session->data['econt_delivery']['customer_info'] : [];
+        $paymentToken = '';
         if (empty($customerInfo)) {
             $customerInfo = $this->db->query(sprintf("
                 SELECT
-                    ci.customer_info AS customerInfo
+                    ci.customer_info AS customerInfo,
+                    ci.payment_token AS paymentToken
                 FROM `%s`.`%secont_delivery_customer_info` AS ci
                 WHERE TRUE
                     AND ci.id_order = {$orderId}
@@ -495,9 +485,10 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 DB_DATABASE,
                 DB_PREFIX
             ));
+            $paymentToken = trim($customerInfo->row['paymentToken']);
             $customerInfo = json_decode($customerInfo->row['customerInfo'], true);
         }
-        if (!$customerInfo || empty($customerInfo['id'])) return;
+        if (!$customerInfo || empty($customerInfo['id'])) return null;
 
         $this->load->language('extension/shipping/econt_delivery');
         $order = array(
@@ -574,13 +565,11 @@ class ModelExtensionShippingEcontDelivery extends Model {
         $aOrderObject['order'] = $order;
         $aOrderObject['orderData'] = $orderData;
         $aOrderObject['customerInfo'] = $customerInfo;
+
         return $aOrderObject;
     }
 
-    public function calculateShippingPrice()
-    {
-//        @todo make check of some sort  || !$this->oneStepCheckoutModuleEnabled
-//        var_dump($this->session->data['econt_delivery']['customer_info']);
+    public function calculateShippingPrice() {
         if (!array_key_exists('econt_delivery', $this->session->data)) {
             return;
         }

@@ -1,8 +1,25 @@
 <?php
+
+// Heading
+$_['heading_title'] = 'Guaranteed by Econt';
+$_['heading_title_2'] = 'Guaranteed by Econt with Cash on Delivery (GECD)';
+
 // Text
-$_['text_title'] = 'Pay With Econt';
-$_['heading_title'] = 'Guaranteed By Econt with Cash On Delivery';
-$_['status_message_error'] = 'Payment Error';
-$_['status_message_success'] = 'Amount is blocked';
-$_['button_text_success'] = 'Back To Store';
-$_['button_text_error'] = 'Try Again';
+//$_['text_home'] = '';
+
+// Entry
+//$_['entry_total'] = '';
+
+// Help
+//$_['help_text'] = '';
+
+// Button
+$_['button_confirm'] = 'Confirm Order';
+$_['button_confirm_loading'] = 'Loading...';
+
+// Success
+//$_['success_save'] = 'Success: XXX!';
+
+// Error
+$_['error_payment_generation_error'] = 'Warning: Payment generation error!';
+$_['error_payment_error'] = 'Payment error';

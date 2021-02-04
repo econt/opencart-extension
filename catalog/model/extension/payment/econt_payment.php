@@ -1,82 +1,86 @@
 <?php
+
+/** @noinspection PhpUnused */
+
+/**
+ * class ModelExtensionPaymentEcontPayment
+ *
+ * @property DB $db
+ * @property Session $session
+ * @property Config $config
+ * @property \Cart\Cart $cart
+ * @property Loader $load
+ * @property Language $language
+ * @property ControllerCommonLanguage $a;
+ */
 class ModelExtensionPaymentEcontPayment extends Model {
 
 	public function getMethod($address, $total) {
 		$this->load->language('extension/payment/econt_payment');
 
-		$query = $this->db->query("SELECT * FROM " . DB_PREFIX . "zone_to_geo_zone WHERE geo_zone_id = '" . (int)$this->config->get('payment_econt_payment_geo_zone_id') . "' AND country_id = '" . (int)$address['country_id'] . "' AND (zone_id = '" . (int)$address['zone_id'] . "' OR zone_id = '0')");
+        $DBName = DB_DATABASE;
+        $DBTablePrefix = DB_PREFIX;
 
-		if ($this->config->get('payment_econt_payment_total') > 0 && $this->config->get('payment_econt_payment_total') > $total) {
-			$status = false;
-		} elseif (!$this->cart->hasShipping()) {
-			$status = false;
-		} elseif (!$this->config->get('payment_econt_payment_geo_zone_id')) {
-			$status = true;
-		} elseif ($query->num_rows) {
-			$status = true;
-		} else {
-			$status = false;
-		}
+		if (
+		        is_array($this->session->data)
+            &&  array_key_exists('shipping_method', $this->session->data)
+            &&  mb_strtolower($this->session->data['shipping_method']['code']) !== 'econt_delivery.econt_delivery'
+        ) return array();
 
-		parse_str(explode('?', $_SERVER["HTTP_REFERER"])[1], $route);
+		$econtPaymentTotal = round($this->config->get('payment_econt_payment_total'), 2);
+        if ($econtPaymentTotal > 0 && $econtPaymentTotal > round($total, 2)) return array();
 
-        if (array_key_exists('shipping_method', $this->session->data) && $this->session->data['shipping_method']['code'] != 'econt_delivery.econt_delivery') {
-            $status = false;
-        } elseif (count($route) && $route['route'] === 'sale/order/edit') {
-            $status = false;
+        if (!$this->cart->hasShipping()) return array();
+
+        $econtGEOZoneID = intval($this->config->get('payment_econt_payment_geo_zone_id'));
+        if ($econtGEOZoneID > 0) {
+            $countryID = intval($address['country_id']);
+            $zoneID = intval($address['zone_id']);
+
+            $queryResult = $this->db->query("
+                SELECT
+                    z.
+                FROM {$DBName}.{$DBTablePrefix}zone_to_geo_zone AS z
+                WHERE TRUE
+                    AND z.geo_zone_id = {$econtGEOZoneID}
+                    AND z.country_id = {$countryID}
+                    AND z.zone_id IN (0, {$zoneID})
+            ");
+            if (intval($queryResult->num_rows) <= 0) return array();
         }
 
-		$method_data = array();
+        $methodDataTitle = $this->language->get('heading_title');
+        $terms = $this->language->get('heading_title_2');
 
-        ob_start() ;?>
-            <?php $paymentLogo = trim($this->config->get('payment_econt_payment_logo')); ?>
-            <?php if (!empty($paymentLogo)): ?>
-                <br>
-                <img src="<?php echo "/catalog/view/theme/default/image/econt_payment_logo_{$paymentLogo}.png"; ?>" alt="Econt Delivery Payment Logo" style="margin-bottom: 15px;">
-                <br>
-            <?php endif; ?>
-            <?php echo trim($this->config->get('payment_econt_payment_description')); ?>
+        $languagesQueryResult = $this->db->query(sprintf("
+            SELECT
+                l.language_id AS id
+            FROM {$DBName}.{$DBTablePrefix}language AS l
+            WHERE TRUE
+                AND l.code = '%s'
+            LIMIT 1
+        ", $this->db->escape($this->session->data['language'])));
+        $languageID = @intval($languagesQueryResult->row['id']);
+        if ($languageID > 0) {
+            $methodDataTitle = trim($this->config->get("payment_econt_payment_title_lang_{$languageID}"));
+            ob_start(); ?>
+                <?php $paymentLogo = trim($this->config->get("payment_econt_payment_logo_lang_{$languageID}")); ?>
+                <?php if (!empty($paymentLogo)): ?>
+                    <br>
+                    <img src="<?php echo "/catalog/view/theme/default/image/econt_payment_logo_{$paymentLogo}.png"; ?>" alt="<?php echo $methodDataTitle; ?> Logo" style="margin-bottom: 15px;">
+                    <br>
+                <?php endif; ?>
+            <?php echo trim($this->config->get("payment_econt_payment_description_lang_{$languageID}")); ?>
             <?php $terms = ob_get_contents();
-        ob_end_clean();
-
-		if ($status) {
-			$method_data = array(
-				'code'       => 'econt_payment',
-				'title'      => trim($this->config->get('payment_econt_payment_title')),
-				'terms'      => trim($terms),
-				'sort_order' => $this->config->get('payment_econt_payment_sort_order')
-			);
-		}
-
-		return $method_data;
-	}
-
-    public function updateOrder($orderId, $token = '')
-    {
-        if (isset($this->session->data['econt_payment_paymentToken'])) {
-            unset($this->session->data['econt_payment_paymentToken']);
+            ob_end_clean();
         }
 
-        return $this->db->query(sprintf("
-                    INSERT INTO `%s`.`%secont_delivery_customer_info`
-                    SET id_order = {$orderId},
-                        customer_info = '%s',
-                        payment_token = '{$token}'
-                    ON DUPLICATE KEY UPDATE
-                        customer_info = VALUES(customer_info)
-                ",
-            DB_DATABASE,
-            DB_PREFIX,
-            $this->db->escape(json_encode($this->session->data['econt_delivery']['customer_info']))
-        ));
-
-//        return $this->db->query(sprintf("
-//                    UPDATE `%s`.`%secont_delivery_customer_info`
-//                    SET payment_token = '{$token}'
-//                    WHERE id_order = {$orderId}
-//                ",
-//            DB_DATABASE,
-//            DB_PREFIX
-//        ));
+        return array(
+            'code' => 'econt_payment',
+            'title' => $methodDataTitle,
+            'terms' => trim($terms),
+            'sort_order' => intval($this->config->get('payment_econt_payment_sort_order'))
+        );
 	}
+
 }

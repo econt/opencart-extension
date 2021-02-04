@@ -1,6 +1,7 @@
 <?php
 
-/** @noinspection PhpUndefinedClassInspection */
+/** @noinspection PhpUnused */
+/** @noinspection PhpUnusedParameterInspection */
 
 /**
  * @property Request $request
@@ -19,26 +20,24 @@
  */
 class ControllerExtensionShippingEcontDelivery extends Controller {
 
-    public function afterModelCheckoutOrderAddHistory(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
-        if (isset($this->session->data['econt_payment_paymentToken'])) {
-            $token = $this->session->data['econt_payment_paymentToken'];
-        } else {
-            $token = '';
-        }
-
+    public function afterModelCheckoutOrderAddHistory($eventRoute, &$data) {
         $this->load->model('extension/shipping/econt_delivery');
-        $aData = $this->model_extension_shipping_econt_delivery->prepareOrder($token);
-        $order = $aData['order'];
-        $orderData = $aData['orderData'];
-        $customerInfo = $aData['customerInfo'];
-
-        if ($token == '' && $this->request->get['route'] === 'api/order/edit' && isset($order['paymentToken'])) {
-            $order['paymentToken'] = 'canceled';
-        }
-
         $this->load->model('setting/setting');
+
         $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
-        if (empty($settings['shipping_econt_delivery_system_url']) || empty($settings['shipping_econt_delivery_private_key'])) return;
+        $data = $this->model_extension_shipping_econt_delivery->prepareOrder();
+        $order = $data['order'];
+        $orderData = $data['orderData'];
+        $customerInfo = $data['customerInfo'];
+
+        if ((
+                empty($settings['shipping_econt_delivery_system_url'])
+            ||  empty($settings['shipping_econt_delivery_private_key'])
+        ) || (
+                empty($order)
+            ||  empty($orderData)
+            ||  empty($customerInfo)
+        )) return json_decode(null, true);
 
         $response = [];
         try {
@@ -88,12 +87,11 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return json_decode($response, true);
     }
 
-    public function afterViewCheckoutBilling(/** @noinspection PhpUnusedParameterInspection */ $route, $templateParams, $html) {
+    public function afterViewCheckoutBilling($route, $templateParams, $html) {
         return preg_replace("#<div (class=\"checkbox\">\\s+<label>\\s+<input\\s+type=\"checkbox\"\\s+name=\"shipping_address\")#i",'<div style="display:none !important;" \1',$html);
     }
 
-    public function updateShippingPrice($data)
-    {
+    public function updateShippingPrice($data) {
         if($this->session->data['shipping_method']['code'] != 'econt_delivery.econt_delivery') {
             return;
         }
@@ -139,9 +137,11 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     }
 
     public function afterCheckoutConfirm() {
-        if($this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
-            if(empty($this->session->data['econt_delivery']['customer_info'])) throw new Exception;
-            if (($orderId = @intval($this->session->data['order_id'])) > 0) {
+        if ($this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
+            if (empty($this->session->data['econt_delivery']['customer_info'])) throw new Exception;
+
+            $orderId = @intval($this->session->data['order_id']);
+            if ($orderId > 0) {
                 $this->db->query(sprintf("
                     INSERT INTO `%s`.`%secont_delivery_customer_info`
                     SET id_order = {$orderId},

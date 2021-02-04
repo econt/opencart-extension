@@ -1,6 +1,4 @@
 *
-!*/
 !/.gitignore
 !econt_delivery*
 !econt_payment*
-system/storage/logs/econt_delivery.log

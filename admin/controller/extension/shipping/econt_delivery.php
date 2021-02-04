@@ -1,6 +1,7 @@
 <?php
 
-/** @noinspection PhpUndefinedClassInspection */
+/** @noinspection PhpUnused */
+/** @noinspection PhpUnusedParameterInspection */
 
 /**
  * @property Language $language
@@ -30,6 +31,51 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         'testing' => 'https://delivery-demo.econt.com'
     );
     private $trackShipmentUrl = 'https://www.econt.com/services/track-shipment';
+
+    public function install() {
+        $this->load->model('setting/event');
+
+        $this->db->query(sprintf("
+            CREATE TABLE IF NOT EXISTS `%s`.`%secont_delivery_customer_info` (
+                `id_order` INT(11) NOT NULL DEFAULT '0',
+                `customer_info` MEDIUMTEXT NULL,
+                `shipment_number` BIGINT(20) UNSIGNED NULL DEFAULT NULL,
+                PRIMARY KEY (`id_order`)
+            )
+            COLLATE = 'utf8_general_ci'
+            ENGINE = InnoDB
+        ",
+            DB_DATABASE,
+            DB_PREFIX
+        ));
+
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/payment_method/save/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/shipping_method/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
+        /*OneStepCheckout*/
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/payment_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/shipping_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/cart/before', 'extension/shipping/econt_delivery/updateShippingPrice');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/payment/cod/confirm/before', 'extension/shipping/econt_delivery/afterCheckoutConfirm');
+//        end
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/guest/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/register/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/confirm/after', 'extension/shipping/econt_delivery/afterCheckoutConfirm');
+
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/*/before', 'extension/shipping/econt_delivery/loadEcontDeliveryData');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_beforeApi/before', 'extension/shipping/econt_delivery/beforeApi');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_getCustomerInfoParams/before', 'extension/shipping/econt_delivery/getCustomerInfoParams');
+
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_list/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderList');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderInfo');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderFrom');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterModelCheckoutOrderAddHistory');
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/model/sale/order/getOrder/after', 'extension/shipping/econt_delivery/afterAdminModelSaleOrderGetOrder');
+    }
+    public function uninstall() {
+        $this->load->model('setting/event');
+
+        $this->model_setting_event->deleteEventByCode('econt_delivery');
+    }
 
     public function index() {
         $this->language->load('extension/shipping/econt_delivery');
@@ -83,57 +129,10 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             'footer' => $this->load->controller('common/footer')
         )));
     }
-
     public function validate() {
         if (!$this->user->hasPermission('modify', 'extension/shipping/econt_delivery')) $this->error['warning'] = $this->language->get('error_permission');
 
         return empty($this->error);
-    }
-
-    public function install() {
-        $this->load->model('setting/event');
-
-        $this->db->query(sprintf("
-            CREATE TABLE IF NOT EXISTS `%s`.`%secont_delivery_customer_info` (
-                `id_order` INT(11) NOT NULL DEFAULT '0',
-                `customer_info` MEDIUMTEXT NULL,
-                `shipment_number` BIGINT(20) UNSIGNED NULL DEFAULT NULL,
-                PRIMARY KEY (`id_order`)
-            )
-            COLLATE = 'utf8_general_ci'
-            ENGINE = InnoDB
-        ",
-            DB_DATABASE,
-            DB_PREFIX
-        ));
-
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/payment_method/save/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/shipping_method/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
-        /*OneStepCheckout*/
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/payment_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/shipping_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/cart/before', 'extension/shipping/econt_delivery/updateShippingPrice');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/payment/cod/confirm/before', 'extension/shipping/econt_delivery/afterCheckoutConfirm');
-//        end
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/guest/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/register/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/confirm/after', 'extension/shipping/econt_delivery/afterCheckoutConfirm');
-
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/*/before', 'extension/shipping/econt_delivery/loadEcontDeliveryData');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_beforeApi/before', 'extension/shipping/econt_delivery/beforeApi');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/api/shipping/econt_delivery_getCustomerInfoParams/before', 'extension/shipping/econt_delivery/getCustomerInfoParams');
-
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_list/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderList');
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_info/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderInfo');
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/sale/order_form/before', 'extension/shipping/econt_delivery/beforeAdminViewSaleOrderFrom');
-        $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterModelCheckoutOrderAddHistory');
-        $this->model_setting_event->addEvent('econt_delivery', 'admin/model/sale/order/getOrder/after', 'extension/shipping/econt_delivery/afterAdminModelSaleOrderGetOrder');
-    }
-
-    public function uninstall() {
-        $this->load->model('setting/event');
-
-        $this->model_setting_event->deleteEventByCode('econt_delivery');
     }
 
     private function traceShipment($orderId) {
@@ -169,7 +168,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return $response;
     }
 
-    private function printEcontDeliveryCreateLabelWindow(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, $data) { ?>
+    private function printEcontDeliveryCreateLabelWindow($eventRoute, $data) { ?>
         <?php
             $this->load->model('setting/setting');
             $econtDeliverySettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
@@ -256,7 +255,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         </script>
     <?php }
 
-    public function beforeAdminViewSaleOrderList(/** @noinspection PhpUnusedParameterInspection */ &$eventRoute, &$data) {
+    public function beforeAdminViewSaleOrderList(&$eventRoute, &$data) {
         if (empty($data['orders'])) return;
 
         $this->language->load('extension/shipping/econt_delivery');
@@ -328,7 +327,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         <?php $data['footer'] = str_replace('</body>', sprintf('%s</body>', ob_get_contents()), $data['footer']);
         ob_end_clean();
     }
-    public function beforeAdminViewSaleOrderFrom(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, &$data) {
+    public function beforeAdminViewSaleOrderFrom($eventRoute, &$data) {
         $this->language->load('extension/shipping/econt_delivery');
 
         $this->load->model('setting/setting');
@@ -458,7 +457,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         <?php $data['footer'] = str_replace('</body>', sprintf('%s</body>', ob_get_contents()), $data['footer']);
         ob_end_clean();
     }
-    public function beforeAdminViewSaleOrderInfo(/** @noinspection PhpUnusedParameterInspection */ &$eventRoute, &$data) {
+    public function beforeAdminViewSaleOrderInfo(&$eventRoute, &$data) {
         $orderId = intval($this->request->get['order_id']);
         if ($orderId <= 0) return;
 
@@ -497,7 +496,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             ob_end_clean();
         }
     }
-    public function afterAdminModelSaleOrderGetOrder(/** @noinspection PhpUnusedParameterInspection */ &$eventRoute, &$data, &$returnData) {
+    public function afterAdminModelSaleOrderGetOrder(&$eventRoute, &$data, &$returnData) {
         $orderId = $returnData['order_id'];
         if ($orderId <= 0) return;
 

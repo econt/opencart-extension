@@ -1,23 +1,58 @@
 <?php
+
+/** @noinspection PhpUnused */
+/** @noinspection PhpUnusedParameterInspection */
+
+/**
+ * class ControllerExtensionPaymentEcontPayment
+ *
+ * @property Loader $load
+ * @property Language $language
+ * @property Response $response
+ * @property Request $request
+ * @property Config $config
+ * @property Document $document
+ * @property Session $session
+ * @property Url $url
+ *
+ * @property ModelSettingEvent $model_setting_event
+ * @property ModelSettingSetting $model_setting_setting
+ * @property ModelLocalisationLanguage $model_localisation_language
+ * @property ModelLocalisationOrderStatus $model_localisation_order_status
+ * @property ModelLocalisationGeoZone $model_localisation_geo_zone
+ */
 class ControllerExtensionPaymentEcontPayment extends Controller {
-    private $error = array();
+
+    public $error = array();
 
     public function install() {
         $this->load->model('setting/event');
+        $this->load->model('setting/setting');
+        $this->load->model('localisation/order_status');
+        $this->load->model('localisation/language');
+
         $this->model_setting_event->addEvent('econt_payment', 'catalog/model/extension/shipping/econt_payment/updateOrder/before', 'extension/shipping/econt_delivery/afterModelCheckoutOrderAddHistory', 1, 1);
-//        $this->model_setting_event->addEvent('econt_payment', 'catalog/model/extension/shipping/econt_payment/updateOrder/before', 'extension/shipping/econt_delivery/afterCheckoutConfirm', 1, 10);
         $this->model_setting_event->addEvent('econt_payment', 'admin/view/sale/order_list/before', 'extension/payment/econt_payment/beforeAdminViewSaleOrderListShowToken');
 
-        $this->load->model('setting/setting');
-        $this->model_setting_setting->editSetting('payment_econt_payment', array(
-            'payment_econt_payment_title' => 'Гарантирано от Еконт',
-            'payment_econt_payment_logo' => 'dark',
-            'payment_econt_payment_description' => 'Плащане с карта, при което се резервира сумата за поръчката и доставката. Плащате, когато приемете пратката. При отказ, стойността на стоката автоматично се освобождава от картата. Приспада се само доставката. Пазарувате с карта без притеснения дали ще получите средствата си обратно при връщане.'
-        ));
+        $settings = array(
+            'payment_econt_payment_total' => 0.01,
+            'payment_econt_payment_geo_zone_id' => 0,
+            'payment_econt_payment_order_status_payment_completed_id' => $this->config->get('config_order_status_id'),
+            'payment_econt_payment_order_status_payment_processing_id' => $this->config->get('config_order_status_id'),
+            'payment_econt_payment_order_status_payment_failed_id' => $this->config->get('config_order_status_id'),
+            'payment_econt_payment_title_lang_default' => 'Гарантирано от Еконт',
+            'payment_econt_payment_logo_lang_default' => 'dark',
+            'payment_econt_payment_description_lang_default' => 'Плащане с карта, при което се резервира сумата за поръчката и доставката. Плащате, когато приемете пратката. При отказ, стойността на стоката автоматично се освобождава от картата. Приспада се само доставката. Пазарувате с карта без притеснения дали ще получите средствата си обратно при връщане.'
+        );
+        foreach ($this->model_localisation_language->getLanguages() as $systemLanguage) {
+            $settings["payment_econt_payment_title_lang_{$systemLanguage['language_id']}"] = $settings['payment_econt_payment_title_lang_default'];
+            $settings["payment_econt_payment_logo_lang_{$systemLanguage['language_id']}"] = $settings['payment_econt_payment_logo_lang_default'];
+            $settings["payment_econt_payment_description_lang_{$systemLanguage['language_id']}"] = $settings['payment_econt_payment_description_lang_default'];
+        }
+        $this->model_setting_setting->editSetting('payment_econt_payment', $settings);
 
         return $this->checkIfDeliveryIsInstalled();
     }
-
     public function uninstall() {
         $this->load->model('setting/event');
 
@@ -27,10 +62,12 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
     public function index() {
         $this->load->language('extension/payment/econt_payment');
 
-        $this->document->setTitle($this->language->get('heading_title'));
-
         $this->load->model('setting/setting');
+        $this->load->model('localisation/order_status');
+        $this->load->model('localisation/geo_zone');
+        $this->load->model('localisation/language');
 
+        // save
         if (($this->request->server['REQUEST_METHOD'] == 'POST') && $this->validate()) {
             $this->model_setting_setting->editSetting('payment_econt_payment', $this->request->post);
 
@@ -39,89 +76,56 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
             $this->response->redirect($this->url->link('marketplace/extension', 'user_token=' . $this->session->data['user_token'] . '&type=payment', true));
         }
 
-        if (isset($this->error['warning'])) {
-            $data['error_warning'] = $this->error['warning'];
-        } else {
-            $data['error_warning'] = '';
-        }
-
-        $data['breadcrumbs'] = array();
-
-        $data['breadcrumbs'][] = array(
-            'text' => $this->language->get('text_home'),
-            'href' => $this->url->link('common/dashboard', 'user_token=' . $this->session->data['user_token'], true)
-        );
-
-        $data['breadcrumbs'][] = array(
-            'text' => $this->language->get('text_extension'),
-            'href' => $this->url->link('marketplace/extension', 'user_token=' . $this->session->data['user_token'] . '&type=payment', true)
-        );
-
-        $data['breadcrumbs'][] = array(
-            'text' => $this->language->get('heading_title'),
-            'href' => $this->url->link('extension/payment/econt_payment', 'user_token=' . $this->session->data['user_token'], true)
-        );
-
-        $data['action'] = $this->url->link('extension/payment/econt_payment', 'user_token=' . $this->session->data['user_token'], true);
-
-        $data['cancel'] = $this->url->link('marketplace/extension', 'user_token=' . $this->session->data['user_token'] . '&type=payment', true);
-
-        if (isset($this->request->post['payment_econt_payment_total'])) {
-            $data['payment_econt_payment_total'] = $this->request->post['payment_econt_payment_total'];
-        } else {
-            $data['payment_econt_payment_total'] = $this->config->get('payment_econt_payment_total');
-        }
-
-        if (isset($this->request->post['payment_econt_payment_order_status_id'])) {
-            $data['payment_ecpnt_payment_order_status_id'] = $this->request->post['payment_econt_payment_order_status_id'];
-        } else {
-            $data['payment_econt_payment_order_status_id'] = $this->config->get('payment_econt_payment_order_status_id');
-        }
-
-        $this->load->model('localisation/order_status');
-
-        $data['order_statuses'] = $this->model_localisation_order_status->getOrderStatuses();
-
-        if (isset($this->request->post['payment_econt_payment_geo_zone_id'])) {
-            $data['payment_econt_payment_geo_zone_id'] = $this->request->post['payment_econt_payment_geo_zone_id'];
-        } else {
-            $data['payment_econt_payment_geo_zone_id'] = $this->config->get('payment_econt_payment_geo_zone_id');
-        }
-
-        $this->load->model('localisation/geo_zone');
-
-        $data['geo_zones'] = $this->model_localisation_geo_zone->getGeoZones();
-
-        if (isset($this->request->post['payment_econt_payment_status'])) {
-            $data['payment_econt_payment_status'] = $this->request->post['payment_econt_payment_status'];
-        } else {
-            $data['payment_econt_payment_status'] = $this->config->get('payment_econt_payment_status');
-        }
-
-        // payment title
-        if (isset($this->request->post['payment_econt_payment_title'])) $data['payment_econt_payment_title'] = $this->request->post['payment_econt_payment_title'];
-        else $data['payment_econt_payment_title'] = $this->config->get('payment_econt_payment_title');
-        // payment logo
-        if (isset($this->request->post['payment_econt_payment_logo'])) $data['payment_econt_payment_logo'] = $this->request->post['payment_econt_payment_logo'];
-        else $data['payment_econt_payment_logo'] = $this->config->get('payment_econt_payment_logo');
-        // payment description
-        if (isset($this->request->post['payment_econt_payment_description'])) $data['payment_econt_payment_description'] = $this->request->post['payment_econt_payment_description'];
-        else $data['payment_econt_payment_description'] = $this->config->get('payment_econt_payment_description');
-
-
-        if (isset($this->request->post['payment_econt_payment_sort_order'])) {
-            $data['payment_econt_payment_sort_order'] = $this->request->post['payment_econt_payment_sort_order'];
-        } else {
-            $data['payment_econt_payment_sort_order'] = $this->config->get('payment_econt_payment_sort_order');
-        }
+        $this->document->setTitle($this->language->get('heading_title'));
 
         $data['header'] = $this->load->controller('common/header');
         $data['column_left'] = $this->load->controller('common/column_left');
+
+        $data['breadcrumbs'] = array(array(
+            'text' => $this->language->get('text_home'),
+            'href' => $this->url->link('common/dashboard', 'user_token=' . $this->session->data['user_token'], true)
+        ), array(
+            'text' => $this->language->get('text_extension'),
+            'href' => $this->url->link('marketplace/extension', 'user_token=' . $this->session->data['user_token'] . '&type=payment', true)
+        ), array(
+            'text' => $this->language->get('heading_title'),
+            'href' => $this->url->link('extension/payment/econt_payment', 'user_token=' . $this->session->data['user_token'], true)
+        ));
+
+        $data['error_warning'] = (isset($this->error['warning']) ? $this->error['warning'] : '');
+
+        $data['cancel_url'] = $this->url->link('marketplace/extension', 'user_token=' . $this->session->data['user_token'] . '&type=payment', true);
+        $data['action_url'] = $this->url->link('extension/payment/econt_payment', 'user_token=' . $this->session->data['user_token'], true);
+        $data['edit_order_statuses_url'] = $this->url->link('localisation/order_status', 'user_token=' . $this->session->data['user_token'], true);
+
+        $data['order_statuses'] = $this->model_localisation_order_status->getOrderStatuses();
+        $data['geo_zones'] = $this->model_localisation_geo_zone->getGeoZones();
+
+        $settingFields = array(
+            'payment_econt_payment_total',
+            'payment_econt_payment_order_status_payment_completed_id',
+            'payment_econt_payment_order_status_payment_processing_id',
+            'payment_econt_payment_order_status_payment_failed_id',
+            'payment_econt_payment_geo_zone_id',
+            'payment_econt_payment_status',
+            'payment_econt_payment_sort_order'
+        );
+        foreach ($settingFields as $settingFieldName) {
+            $data[$settingFieldName] = (isset($this->request->post[$settingFieldName]) ? $this->request->post[$settingFieldName] : $this->config->get($settingFieldName));
+        }
+
+        $data['systemLanguages'] = $this->model_localisation_language->getLanguages();
+        foreach ($data['systemLanguages'] as $systemLanguage) {
+            foreach (array('title', 'logo', 'description') as $fieldNameKey) {
+                $fieldName = "payment_econt_payment_{$fieldNameKey}_lang_{$systemLanguage['language_id']}";
+                $data[$fieldName] = (isset($this->request->post[$fieldName]) ? $this->request->post[$fieldName] : $this->config->get($fieldName));
+            }
+        }
+
         $data['footer'] = $this->load->controller('common/footer');
 
         $this->response->setOutput($this->load->view('extension/payment/econt_payment', $data));
     }
-
     protected function validate() {
         if (!$this->user->hasPermission('modify', 'extension/payment/econt_payment') && !$this->checkIfDeliveryIsInstalled()) {
             $this->error['warning'] = $this->language->get('error_permission');
@@ -130,11 +134,7 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
         return !$this->error;
     }
 
-    /**
-     * @return mixed
-     */
-    public function checkIfDeliveryIsInstalled()
-    {
+    public function checkIfDeliveryIsInstalled() {
         $result = $this->db->query(sprintf("
             SELECT * FROM `%s`.`%sextension` WHERE `type` = 'shipping' AND `code` = 'econt_delivery'
         ",
@@ -175,7 +175,7 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
         return true;
     }
 
-    public function beforeAdminViewSaleOrderListShowToken(/** @noinspection PhpUnusedParameterInspection */ &$eventRoute, &$data) {
+    public function beforeAdminViewSaleOrderListShowToken(&$eventRoute, &$data) {
         if (empty($data['orders'])) return;
 
         $this->language->load('extension/payment/econt_payment');
@@ -217,13 +217,13 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
                 'orderData': <?=json_encode($orderData)?>
             };
             $(function($) {
-                var orderListTable = $('#form-order table');
-                orderListTable.find('thead tr td:last-child').before(($('<td></td>').text('<?=$this->language->get('text_order_list_econt_payment_column_label');?>')));
+                let orderListTable = $('#form-order table');
+                orderListTable.find('thead tr td:last-child').before(($('<td></td>').text('<?=$this->language->get('text_grid_gecd_column_header');?>')));
                 orderListTable.find('tbody tr').each(function(rowIndex, row) {
-                    var $row = $(row)
-                    var orderId = $row.find('[name^="selected"]').val();
+                    let $row = $(row)
+                    let orderId = $row.find('[name^="selected"]').val();
 
-                    var $wayBillContent = null;
+                    let $wayBillContent = null;
                     if (
                         window.econtPayment['orderData'] &&
                         window.econtPayment['orderData'][orderId] &&
@@ -231,9 +231,9 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
                     ) {
                         $wayBillContent = $('<p></p>');
                         if (window.econtPayment['orderData'][orderId]['paymentToken']) {
-                            $wayBillContent.text('<?=$this->language->get('text_token_yes')?>');
+                            $wayBillContent.text('<?=$this->language->get('text_grid_gecd_column_content_yes')?>');
                         } else {
-                            $wayBillContent.text('<?=$this->language->get('text_token_no')?>');
+                            $wayBillContent.text('<?=$this->language->get('text_grid_gecd_column_content_no')?>');
                         }
                     }
                     $row.find('td:last-child').before(($('<td></td>').css({'text-align': 'center'}).append($wayBillContent)));
@@ -245,90 +245,4 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
         ob_end_clean();
     }
 
-    private function printEcontDeliveryCreateLabelWindow(/** @noinspection PhpUnusedParameterInspection */ $eventRoute, $data) { ?>
-        <?php
-        $this->load->model('setting/setting');
-        $econtDeliverySettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
-
-        $this->language->load('extension/payment/econt_payment');
-
-        $orderId = intval(@$_GET['order_id']);
-        if ($orderId <= 0) $orderId = null;
-        ?>
-        <style>
-            #econt-delivery-create-label-modal .modal-dialog {
-                width: 96%;
-            }
-            #econt-delivery-create-label-modal .modal-body {
-                padding: 0;
-            }
-            #econt-delivery-create-label-modal iframe {
-                border: 0;
-                width: 100%;
-                height: 87vh;
-            }
-
-            @media screen and (min-width: 800px) {
-                #econt-delivery-create-label-modal .modal-dialog {
-                    width: 700px;
-                }
-            }
-        </style>
-        <div id="econt-delivery-create-label-modal" class="modal fade" role="dialog">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <button type="button" class="close" data-dismiss="modal">&times;</button>
-                        <h4 class="modal-title"><?=$this->language->get('heading_title')?></h4>
-                    </div>
-                    <div class="modal-body">
-                        <iframe src="about:blank"></iframe>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <script>
-            $(function($) {
-                var empty__ = function(thingy) {
-                    return thingy == 0 || !thingy || (typeof(thingy) === 'object' && $.isEmptyObject(thingy));
-                }
-                var $createLabelWindow = $('#econt-delivery-create-label-modal').modal({
-                    'show': false,
-                    'backdrop': 'static'
-                });
-                $('[href="#open_econt_delivery_create_label_window"]').click(function(event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    $createLabelWindow.find('iframe').attr('src', '<?=$econtDeliverySettings['shipping_econt_delivery_system_url'] . '/create_label.php?'?>' + $.param({
-                        'order_number': (<?=json_encode($orderId)?> || $(this).attr('data-order-id')),
-                        'token': '<?=$econtDeliverySettings['shipping_econt_delivery_private_key']?>'
-                }));
-                    $createLabelWindow.modal('show');
-                });
-                $(window).on('message', function(event){
-                    if (event['originalEvent']['origin'] != '<?=$econtDeliverySettings['shipping_econt_delivery_system_url']?>') return;
-
-                    var messageData = event['originalEvent']['data'];
-                    if (!messageData) return;
-
-                    switch (messageData['event']) {
-                        case 'cancel':
-                            $createLabelWindow.modal('hide');
-                            break;
-                        case 'confirm':
-                            if (messageData['printPdf'] === true && !empty__(messageData['shipmentStatus']['pdfURL'])) window.open(messageData['shipmentStatus']['pdfURL'], '_blank');
-                            setTimeout(function() {
-                                window.location.href = 'index.php?' + $.param({
-                                    'route': 'sale/order/info',
-                                    'user_token': '<?=$data['user_token']?>',
-                                    'order_id': messageData['orderData']['num']
-                                });
-                            }, 300);
-                            break;
-                    }
-                });
-            });
-        </script>
-    <?php }
 }
