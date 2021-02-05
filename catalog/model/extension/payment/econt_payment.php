@@ -39,7 +39,7 @@ class ModelExtensionPaymentEcontPayment extends Model {
 
             $queryResult = $this->db->query("
                 SELECT
-                    z.
+                    z.*
                 FROM {$DBName}.{$DBTablePrefix}zone_to_geo_zone AS z
                 WHERE TRUE
                     AND z.geo_zone_id = {$econtGEOZoneID}
