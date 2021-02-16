@@ -263,7 +263,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $shippingCost = 0;
         if (isset($this->session->data['payment_method']['code'])) {
             if ($this->session->data['payment_method']['code'] === 'cod') {
-                $shippingCost = $this->session->data['econt_delivery']['customer_info']['shipping_price_cod'];
+                $shippingCost = @$this->session->data['econt_delivery']['customer_info']['shipping_price_cod'];
             } elseif ($this->session->data['payment_method']['code'] === 'econt_payment') {
                 $shippingCost = @$this->session->data['econt_delivery']['customer_info']['shipping_price_cod_e'];
             } else {
