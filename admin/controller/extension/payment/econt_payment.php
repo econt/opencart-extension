@@ -42,7 +42,7 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
             'payment_econt_payment_order_status_payment_failed_id' => $this->config->get('config_order_status_id'),
             'payment_econt_payment_title_lang_default' => 'Гарантирано от Еконт',
             'payment_econt_payment_logo_lang_default' => 'dark',
-            'payment_econt_payment_description_lang_default' => 'Плащане с карта, при което се резервира сумата за поръчката и доставката. Плащате, когато приемете пратката. При отказ, стойността на стоката автоматично се освобождава от картата. Приспада се само доставката. Пазарувате с карта без притеснения дали ще получите средствата си обратно при връщане.'
+            'payment_econt_payment_description_lang_default' => 'Плащане с карта, при което сумата се резервира по сметката ви. Ще бъде изтеглена едва когато приемете пратката си. Ако я откажете или върнете веднага, сумата от наложения платеж се освобождава и отново е на ваше разположение.'
         );
         foreach ($this->model_localisation_language->getLanguages() as $systemLanguage) {
             $settings["payment_econt_payment_title_lang_{$systemLanguage['language_id']}"] = $settings['payment_econt_payment_title_lang_default'];
