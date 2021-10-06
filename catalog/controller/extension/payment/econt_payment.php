@@ -181,8 +181,7 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
             'paymentIdentifier' => $paymentIdentifier
         ))), true);
 
-        $paymentToken = $response['paymentToken'];
-        if (empty($paymentToken)) {
+        if (empty($response['paymentToken'])) {
             header(sprintf('Location: %s', (!empty($response['message']) ? $this->url->link('checkout/failure') : $this->url->link('error/not_found'))));
             die();
         }
@@ -195,7 +194,7 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
         ",
             DB_DATABASE,
             DB_PREFIX,
-            $this->db->escape($paymentToken)
+            $this->db->escape($response['paymentToken'])
         ));
         $this->model_checkout_order->addOrderHistory($orderID, $econtPaymentSettings['payment_econt_payment_order_status_payment_completed_id'], 'GECD: Payment Completed / ГЕНП: Успешно плащане');
 
