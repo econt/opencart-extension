@@ -1,22 +1,22 @@
 <?php
 
 // Heading
-$_['heading_title'] = 'Гарантирано от Еконт';
-$_['heading_title_2'] = 'Гарантирано от Еконт с Наложен платеж (ГЕНП)';
+$_['heading_title'] = 'EcontPay';
+$_['heading_title_2'] = 'EcontPay с Наложен платеж (ГЕНП)';
 
 // Text
 $_['text_home'] = 'Начало';
 $_['text_extension'] = 'Модули';
-$_['text_econt_payment'] = '<img src="view/image/payment/econt_payment.png" alt="Гарантирано от Еконт с Наложен платеж (ГЕНП)" title="Гарантирано от Еконт с Наложен платеж (ГЕНП)" style="width: 90px" />';
-$_['text_success'] = 'Успешно редактирахте модула "Гарантирано от Еконт"';
-$_['text_edit'] = 'Редактирай "Гарантирано от Еконт"';
+$_['text_econt_payment'] = '<img src="view/image/payment/econt_payment.png" alt="EcontPay с Наложен платеж (ГЕНП)" title="EcontPay с Наложен платеж (ГЕНП)" style="width: 90px" />';
+$_['text_success'] = 'Успешно редактирахте модула "EcontPay"';
+$_['text_edit'] = 'Редактирай "EcontPay"';
 $_['text_entry_geo_zone_all_zones'] = 'Всички зони';
 $_['text_entry_status_enabled'] = 'Разрешено';
 $_['text_entry_status_disabled'] = 'Забранено';
 $_['text_entry_logo_dark'] = 'Тъмно';
 $_['text_entry_logo_light'] = 'Светло';
 $_['text_edit_order_statuses'] = 'Редакция на "Статуси на поръчки"';
-$_['text_grid_gecd_column_header'] = 'Гарантирано от Еконт';
+$_['text_grid_gecd_column_header'] = 'EcontPay';
 $_['text_grid_gecd_column_content_yes'] = 'Да';
 $_['text_grid_gecd_column_content_no'] = 'Не';
 // Entry

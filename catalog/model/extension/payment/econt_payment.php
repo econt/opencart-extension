@@ -49,7 +49,7 @@ class ModelExtensionPaymentEcontPayment extends Model {
             if (intval($queryResult->num_rows) <= 0) return array();
         }
 
-        $methodDataTitle = $this->language->get('heading_title');
+        $methodDataTitle = "EcontPay";
         $terms = $this->language->get('heading_title_2');
 
         $languagesQueryResult = $this->db->query(sprintf("
@@ -62,15 +62,10 @@ class ModelExtensionPaymentEcontPayment extends Model {
         ", $this->db->escape($this->session->data['language'])));
         $languageID = @intval($languagesQueryResult->row['id']);
         if ($languageID > 0) {
-            $methodDataTitle = trim($this->config->get("payment_econt_payment_title_lang_{$languageID}"));
             ob_start(); ?>
-                <?php $paymentLogo = trim($this->config->get("payment_econt_payment_logo_lang_{$languageID}")); ?>
-                <?php if (!empty($paymentLogo)): ?>
-                    <br>
-                    <img src="<?php echo "/catalog/view/theme/default/image/econt_payment_logo_{$paymentLogo}.png"; ?>" alt="<?php echo $methodDataTitle; ?> Logo" style="margin-bottom: 15px;">
-                    <br>
-                <?php endif; ?>
-            <?php echo trim($this->config->get("payment_econt_payment_description_lang_{$languageID}")); ?>
+            <br>
+            <img src="<?php echo "/catalog/view/theme/default/image/Econt_pay.svg"; ?>" alt="<?php echo $methodDataTitle; ?> Logo" style="margin-bottom: 15px;">
+            <br>
             <?php $terms = ob_get_contents();
             ob_end_clean();
         }

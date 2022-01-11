@@ -40,14 +40,10 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
             'payment_econt_payment_order_status_payment_completed_id' => $this->config->get('config_order_status_id'),
             'payment_econt_payment_order_status_payment_processing_id' => $this->config->get('config_order_status_id'),
             'payment_econt_payment_order_status_payment_failed_id' => $this->config->get('config_order_status_id'),
-            'payment_econt_payment_title_lang_default' => 'Гарантирано от Еконт',
-            'payment_econt_payment_logo_lang_default' => 'dark',
-            'payment_econt_payment_description_lang_default' => 'Плащане с карта, при което сумата се резервира по сметката ви. Ще бъде изтеглена едва когато приемете пратката си. Ако я откажете или върнете веднага, сумата от наложения платеж се освобождава и отново е на ваше разположение.'
+            'payment_econt_payment_title_lang_default' => 'EcontPay',
         );
         foreach ($this->model_localisation_language->getLanguages() as $systemLanguage) {
             $settings["payment_econt_payment_title_lang_{$systemLanguage['language_id']}"] = $settings['payment_econt_payment_title_lang_default'];
-            $settings["payment_econt_payment_logo_lang_{$systemLanguage['language_id']}"] = $settings['payment_econt_payment_logo_lang_default'];
-            $settings["payment_econt_payment_description_lang_{$systemLanguage['language_id']}"] = $settings['payment_econt_payment_description_lang_default'];
         }
         $this->model_setting_setting->editSetting('payment_econt_payment', $settings);
 
@@ -116,7 +112,7 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
 
         $data['systemLanguages'] = $this->model_localisation_language->getLanguages();
         foreach ($data['systemLanguages'] as $systemLanguage) {
-            foreach (array('title', 'logo', 'description') as $fieldNameKey) {
+            foreach (array('title') as $fieldNameKey) {
                 $fieldName = "payment_econt_payment_{$fieldNameKey}_lang_{$systemLanguage['language_id']}";
                 $data[$fieldName] = (isset($this->request->post[$fieldName]) ? $this->request->post[$fieldName] : $this->config->get($fieldName));
             }

@@ -122,45 +122,6 @@
             {% endfor %}
           </ul>
           <div class="tab-content">
-            {% for language in systemLanguages %}
-              <div class="tab-pane" id="language_{{ language.language_id }}">
-                <!-- payment title -->
-                <div class="form-group">
-                  <label class="col-sm-3 control-label" for="input-econt-payment-title-lang-{{ language.language_id }}">{{ entry_title }}</label>
-                  <div class="col-sm-9">
-                    <input type="text" name="payment_econt_payment_title_lang_{{ language.language_id }}" value="{{ _context['payment_econt_payment_title_lang_' ~ language.language_id] }}" id="input-econt-payment-title-lang-{{ language.language_id }}" class="form-control" />
-                  </div>
-                </div>
-
-                <!-- payment logo -->
-                <div class="form-group">
-                  <label class="col-sm-3 control-label" for="input-econt-payment-logo-lang-{{ language.language_id }}">{{ entry_logo }}</label>
-                  <div class="col-sm-9">
-                    <select name="payment_econt_payment_logo_lang_{{ language.language_id }}" id="input-econt-payment-logo-lang-{{ language.language_id }}" class="form-control gecd_logo">
-                      <option value="">---</option>
-                      {% if (_context['payment_econt_payment_logo_lang_' ~ language.language_id] == 'dark') %}
-                        <option value="dark" selected="selected">{{ text_entry_logo_dark }}</option>
-                        <option value="light">{{ text_entry_logo_light }}</option>
-                      {% elseif (_context['payment_econt_payment_logo_lang_' ~ language.language_id] == 'light') %}
-                        <option value="dark">{{ text_entry_logo_dark }}</option>
-                        <option value="light" selected="selected">{{ text_entry_logo_light }}</option>
-                      {% else %}
-                        <option value="dark">{{ text_entry_logo_dark }}</option>
-                        <option value="light">{{ text_entry_logo_light }}</option>
-                      {% endif %}
-                    </select>
-                  </div>
-                </div>
-
-                <!-- payment description -->
-                <div class="form-group">
-                  <label class="col-sm-3 control-label" for="input-econt-payment-description-lang-{{ language.language_id }}">{{ entry_description }}</label>
-                  <div class="col-sm-9">
-                    <textarea name="payment_econt_payment_description_lang_{{ language.language_id }}" id="input-econt-payment-description-lang-{{ language.language_id }}" class="form-control">{{ _context['payment_econt_payment_description_lang_' ~ language.language_id] }}</textarea>
-                  </div>
-                </div>
-              </div>
-            {% endfor %}
           </div>
         </form>
       </div>
