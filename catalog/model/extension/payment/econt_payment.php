@@ -64,7 +64,7 @@ class ModelExtensionPaymentEcontPayment extends Model {
         if ($languageID > 0) {
             ob_start(); ?>
             <br>
-            <img src="<?php echo "/catalog/view/theme/default/image/Econt_pay.svg"; ?>" alt="<?php echo $methodDataTitle; ?> Logo" style="margin-bottom: 15px;">
+            <img src="<?php echo "/catalog/view/theme/default/image/econt_pay_logo.svg"; ?>" alt="<?php echo $methodDataTitle; ?> Logo" style="margin-bottom: 15px;">
             <br>
             <?php $terms = ob_get_contents();
             ob_end_clean();
