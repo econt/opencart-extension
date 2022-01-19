@@ -1,5 +1,5 @@
 <?php
-
+// Zip-ването (може да) работи различно под windows и linux
 define('BASE_URL', dirname(__FILE__));
 @unlink(BASE_URL . DIRECTORY_SEPARATOR . 'econt_delivery.ocmod.zip');
 $zip = new ZipArchive();
