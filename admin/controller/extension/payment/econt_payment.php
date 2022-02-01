@@ -70,6 +70,32 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
         // save
         if (($this->request->server['REQUEST_METHOD'] == 'POST') && $this->validate()) {
             $this->model_setting_setting->editSetting('payment_econt_payment', $this->request->post);
+            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+            try {
+                $curl = curl_init();
+                curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/PluginsService.logEvent.json");
+                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+                curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json',
+                    "Authorization: {$settings['shipping_econt_delivery_private_key']}"
+                ]);
+                curl_setopt($curl, CURLOPT_POST, true);
+                curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode([[
+                    'plugin_type' => 'opencart',
+                    'action' => 'payment_enabled',
+                    'value' => $this->request->post['payment_econt_payment_status']
+                ]]));
+                curl_setopt($curl, CURLOPT_TIMEOUT, 6);
+                curl_exec($curl);
+                curl_close($curl);
+            } catch (Exception $exception) {
+                $logger = new Log('econt_delivery.log');
+                $logger->write(sprintf('Curl failed with error [%d] %s', $exception->getCode(), $exception->getMessage()));
+            }
+
+
 
             $this->session->data['success'] = $this->language->get('text_success');
 

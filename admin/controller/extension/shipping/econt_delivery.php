@@ -84,7 +84,35 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->load->model('localisation/geo_zone');
 
         if (isset($this->request->post['action']) && $this->request->post['action'] === 'save_settings' && $this->validate()) {
-            $this->model_setting_setting->editSetting('shipping_econt_delivery', $this->request->post);
+            $oldSettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+            $this->model_setting_setting->editSetting('shipping_econt_delivery', $this->request->post);//
+
+            if($this->request->post['shipping_econt_delivery_private_key'] != $oldSettings['shipping_econt_delivery_private_key'] ||
+                $this->request->post['shipping_econt_delivery_system_url'] != $oldSettings['shipping_econt_delivery_system_url']
+                ) {
+                try {
+                    $curl = curl_init();
+                    curl_setopt($curl, CURLOPT_URL, "{$this->request->post['shipping_econt_delivery_system_url']}/services/PluginsService.logEvent.json");
+                    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+                    curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                        'Content-Type: application/json',
+                        "Authorization: {$this->request->post['shipping_econt_delivery_private_key']}"
+                    ]);
+                    curl_setopt($curl, CURLOPT_POST, true);
+                    curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode([[
+                        'plugin_type' => 'opencart',
+                        'action' => 'activate'
+                    ]]));
+                    curl_setopt($curl, CURLOPT_TIMEOUT, 6);
+                    curl_exec($curl);
+                    curl_close($curl);
+                } catch (Exception $exception) {
+                    $logger = new Log('econt_delivery.log');
+                    $logger->write(sprintf('Curl failed with error [%d] %s', $exception->getCode(), $exception->getMessage()));
+                }
+            }
 
             $this->session->data['success'] = $this->language->get('text_success_setting_update');
             $this->response->redirect($this->url->link('marketplace/extension', http_build_query(array(
