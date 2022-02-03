@@ -109,7 +109,7 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
 
             $paymentEMail = @trim($this->session->data['econt_delivery']['customer_info']['email']);
 
-            $this->model_checkout_order->addOrderHistory($orderID, $econtPaymentSettings['payment_econt_payment_order_status_payment_processing_id'], 'GECD: Payment Processing / ГЕНП: Очаква се плащане');
+            $this->model_checkout_order->addOrderHistory($orderID, $econtPaymentSettings['payment_econt_payment_order_status_payment_processing_id'], 'EcontPay: Payment Processing / EcontPay: Очаква се плащане');
 
             $this->cart->clear();
             unset($this->session->data['shipping_method']);
@@ -196,7 +196,7 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
             DB_PREFIX,
             $this->db->escape($response['paymentToken'])
         ));
-        $this->model_checkout_order->addOrderHistory($orderID, $econtPaymentSettings['payment_econt_payment_order_status_payment_completed_id'], 'GECD: Payment Completed / ГЕНП: Успешно плащане');
+        $this->model_checkout_order->addOrderHistory($orderID, $econtPaymentSettings['payment_econt_payment_order_status_payment_completed_id'], 'EcontPay: Payment Completed / EcontPay: Успешно плащане');
 
         header(sprintf('Location: %s', $this->url->link('checkout/success')));
         die();

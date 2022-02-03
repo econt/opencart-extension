@@ -2,12 +2,12 @@
 
 // Heading
 $_['heading_title'] = 'EcontPay';
-$_['heading_title_2'] = 'EcontPay с Наложен платеж (ГЕНП)';
+$_['heading_title_2'] = 'EcontPay';
 
 // Text
 $_['text_home'] = 'Начало';
 $_['text_extension'] = 'Модули';
-$_['text_econt_payment'] = '<img src="view/image/payment/econt_payment.png" alt="EcontPay с Наложен платеж (ГЕНП)" title="EcontPay с Наложен платеж (ГЕНП)" style="width: 90px" />';
+$_['text_econt_payment'] = '<img src="view/image/payment/econt_payment.png" alt="EcontPay" title="EcontPay" style="width: 90px" />';
 $_['text_success'] = 'Успешно редактирахте модула "EcontPay"';
 $_['text_edit'] = 'Редактирай "EcontPay"';
 $_['text_entry_geo_zone_all_zones'] = 'Всички зони';

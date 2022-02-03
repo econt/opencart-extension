@@ -2,7 +2,7 @@
 
 // Heading
 $_['heading_title'] = 'Гарантирано от Еконт';
-$_['heading_title_2'] = 'Гарантирано от Еконт с Наложен платеж (ГЕНП)';
+$_['heading_title_2'] = 'EcontPay';
 
 // Text
 //$_['text_home'] = '';
