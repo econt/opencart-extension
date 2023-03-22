@@ -19,6 +19,7 @@
 class ModelExtensionShippingEcontDelivery extends Model {
 
     private $oneStepCheckoutModuleEnabled = false;
+    private $econtDeliveryOneStepCheckoutEnabled = false;
 
     public function getQuote($address) {
         $geoZoneId = intval($this->config->get('shipping_econt_delivery_geo_zone_id'));
@@ -40,7 +41,20 @@ class ModelExtensionShippingEcontDelivery extends Model {
             ));
             if (intval($result->row['zoneIdsCount']) <= 0) return array();
         }
-
+	
+	    $this->load->model('setting/setting');
+	    $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+	    if($settings['shipping_econt_delivery_checkout_mode'] == 'onestep' && $this->session->data['shipping_address']['firstname'] == '8a9ggua0sjm$Fn'){
+		    $this->session->data['shipping_address']['company']     = '';
+		    $this->session->data['shipping_address']['firstname']   = '';
+		    $this->session->data['shipping_address']['lastname']    = '';
+		    $this->session->data['shipping_address']['iso_code_3']  = '';
+		    $this->session->data['shipping_address']['city']        = '';
+		    $this->session->data['shipping_address']['postcode']    = '';
+		    $this->session->data['shipping_address']['address_1']   = '';
+		    $this->session->data['shipping_address']['address_2']   = '';
+	    }
+        
         $this->oneStepCheckoutModuleEnabled = $this->request->request['route'] == 'extension/quickcheckout/shipping_method';
         $this->load->language('extension/shipping/econt_delivery');
         if($this->request->request['route'] == 'checkout/shipping_method' || $this->oneStepCheckoutModuleEnabled) {
@@ -48,8 +62,8 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 $email = $this->cart->customer->getEmail();
                 $phone = $this->cart->customer->getTelephone();
             } else {
-                $email = $this->session->data['guest']['email'];
-                $phone = $this->session->data['guest']['telephone'];
+                $email = $this->session->data['guest']['email'] ?? '';
+                $phone = $this->session->data['guest']['telephone'] ?? '';
             }
 
             $keys = explode('@',$this->config->get('shipping_econt_delivery_private_key'));
@@ -68,15 +82,13 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 'customer_post_code' => $this->session->data['shipping_address']['postcode'],
                 'customer_address' => $this->session->data['shipping_address']['address_1'].' '.$this->session->data['shipping_address']['address_2'],
             );
-            $officeCode = trim(@$this->session->data['econt_delivery']['customer_info']['office_code']);
+            $officeCode = trim($this->session->data['econt_delivery']['customer_info']['office_code'] ?? '');
             if (!empty($officeCode)) $frameParams['customer_office_code'] = $officeCode;
-            $zip = trim(@$this->session->data['econt_delivery']['customer_info']['zip']);
+            $zip = trim($this->session->data['econt_delivery']['customer_info']['zip'] ?? '');
             if (!empty($zip)) $frameParams['customer_zip'] = $zip;
 
-            $this->load->model('setting/setting');
-            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
             $deliveryBaseURL = $settings['shipping_econt_delivery_system_url'];
-            $frameURL = $deliveryBaseURL.'/customer_info.php?'. http_build_query($frameParams, null, '&');
+            $frameURL = $deliveryBaseURL.'/customer_info.php?'. http_build_query($frameParams, '', '&');
             $deliveryMethodTxt = $this->language->get('text_delivery_method_description');
             $deliveryMethodPriceCD = $this->language->get('text_delivery_method_description_cd');
 

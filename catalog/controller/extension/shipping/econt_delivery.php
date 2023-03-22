@@ -90,6 +90,102 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     public function afterViewCheckoutBilling($route, $templateParams, $html) {
         return preg_replace("#<div (class=\"checkbox\">\\s+<label>\\s+<input\\s+type=\"checkbox\"\\s+name=\"shipping_address\")#i",'<div style="display:none !important;" \1',$html);
     }
+	public function afterViewCheckoutCheckout($route, $params, $html) {
+		$this->load->model('setting/setting');
+		$settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+		if($settings['shipping_econt_delivery_checkout_mode'] == 'onestep'){
+			if(empty($this->session->data['shipping_address'])) $this->session->data['shipping_address'] = [
+				'firstname' => '8a9ggua0sjm$Fn',
+				'lastname' => '',
+				'iso_code_3' => 'BGR',
+				'city' => 'Русе',
+				'postcode' => '7000',
+				'address_1' => 'бул. Славянски 13',
+			];
+			
+			$shippingMethodData = [];
+			$this->load->model('setting/extension');
+			$results = $this->model_setting_extension->getExtensions('shipping');
+			foreach($results as $result){
+				if($result['code'] != 'econt_delivery') continue;
+				if($this->config->get('shipping_'.$result['code'].'_status')){
+					$this->load->model('extension/shipping/'.$result['code']);
+					$quote = $this->{'model_extension_shipping_'.$result['code']}->getQuote(empty($this->session->data['shipping_address']));
+					
+					if($quote){
+						$shippingMethodData[$result['code']] = [
+							'title'      => $quote['title'],
+							'quote'      => $quote['quote'],
+							'sort_order' => $quote['sort_order'],
+							'error'      => $quote['error']
+						];
+					}
+				}
+			}
+			
+			$this->session->data['shipping_methods'] = $shippingMethodData;
+			
+			$ajaxShippingMethod = "
+				    $.ajax({
+				        url: 'index.php?route=checkout/shipping_method',
+				        dataType: 'html',
+				        beforeSend: function() {
+				            $('#button-account').button('loading');
+				        },
+				        complete: function() {
+				            $('#button-account').button('reset');
+				        },
+				        success: function(html) {
+				            $('.alert-dismissible, .text-danger').remove();
+				            $('.form-group').removeClass('has-error');
+				            $('#collapse-shipping-method .panel-body').html(html);
+				            $('#collapse-shipping-method').parent().find('.panel-heading .panel-title').html('<a href=\"#collapse-shipping-method\" data-toggle=\"collapse\" data-parent=\"#accordion\" class=\"accordion-toggle\">{{ text_checkout_shipping_method }} <i class=\"fa fa-caret-down\"></i></a>');
+				            $('a[href=\'#collapse-shipping-method\']').trigger('click');
+				            $('#collapse-shipping-method').parent().find('.panel-heading .panel-title').html('".sprintf($this->language->get('text_checkout_shipping_method'), '4')."');
+				            $('#collapse-payment-method').parent().find('.panel-heading .panel-title').html('".sprintf($this->language->get('text_checkout_payment_method'), '5')."');
+				            $('#collapse-checkout-confirm').parent().find('.panel-heading .panel-title').html('".sprintf($this->language->get('text_checkout_confirm'), '6')."');
+				        },
+						error: function(xhr, ajaxOptions, thrownError) {
+							alert(thrownError + \"\\r\\n\" + xhr.statusText + \"\\r\\n\" + xhr.responseText);
+						}
+					});
+			";
+			
+			$html = $this->replaceBetween('$(document).ready(function() {', '// Checkout', $html, "
+					$ajaxShippingMethod
+				});
+			");
+			
+			$html = $this->replaceBetween('// Checkout', '// Login', $html, "
+				$(document).delegate('#button-account', 'click', function() {
+					$ajaxShippingMethod
+				});
+			");
+		}
+		
+		return $html;
+	}
+
+	public function afterViewCheckoutLogin($route){
+		$this->load->model('setting/setting');
+		$settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+		if($settings['shipping_econt_delivery_checkout_mode'] == 'onestep'){
+			$html = $this->response->getOutput();
+			$html = str_replace('<input type="radio" name="account" value="register" checked="checked">', '<input type="radio" name="account" value="register" disabled">', $html);
+			$html = str_replace('<input type="radio" name="account" value="guest">', '<input type="radio" name="account" value="guest" checked="checked">', $html);
+			$this->response->setOutput($html);
+		}
+	}
+	
+	public function replaceBetween($leftNeedle, $rightNeedle, $haystack, $replacement) {
+		$pos = strpos($haystack, $leftNeedle);
+		$start = $pos === false ? 0 : $pos + strlen($leftNeedle);
+		
+		$pos = strpos($haystack, $rightNeedle, $start);
+		$end = $pos === false ? strlen($haystack) : $pos;
+		
+		return substr_replace($haystack, $replacement, $start, $end - $start);
+	}
 
     public function updateShippingPrice($data) {
         if($this->session->data['shipping_method']['code'] != 'econt_delivery.econt_delivery') {
@@ -133,6 +229,12 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             } else {
                 $this->session->data['shipping_address']['address_1'] = $this->session->data['econt_delivery']['customer_info']['address'];
             }
+	
+	        $this->load->model('setting/setting');
+	        $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+	        if($settings['shipping_econt_delivery_checkout_mode'] == 'onestep'){
+		        $this->session->data['payment_address'] = $this->session->data['shipping_address'];
+	        }
         }
     }
 
@@ -189,6 +291,16 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             if (intval($shopId) <= 0) throw new Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_shop_id_error'));
 
             $this->load->model('extension/shipping/econt_delivery');
+			if($this->session->data['shipping_address']['firstname'] == '8a9ggua0sjm$Fn'){
+				$this->session->data['shipping_address']['company'] = '';
+				$this->session->data['shipping_address']['firstname'] = '';
+				$this->session->data['shipping_address']['lastname'] = '';
+				$this->session->data['shipping_address']['iso_code_3'] = '';
+				$this->session->data['shipping_address']['city'] = '';
+				$this->session->data['shipping_address']['postcode'] = '';
+				$this->session->data['shipping_address']['address_1'] = '';
+				$this->session->data['shipping_address']['address_2'] = '';
+			}
             $response['customer_info'] = array(
                 'id_shop' => $shopId,
                 'order_total' => $this->model_extension_shipping_econt_delivery->getOrderTotal(),
