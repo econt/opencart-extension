@@ -223,6 +223,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             $this->session->data['shipping_address']['iso_code_3'] = $this->session->data['econt_delivery']['customer_info']['country_code'];
             $this->session->data['shipping_address']['city'] = $this->session->data['econt_delivery']['customer_info']['city_name'];
             $this->session->data['shipping_address']['postcode'] = $this->session->data['econt_delivery']['customer_info']['post_code'];
+	        $this->session->data['shipping_address']['email'] = $this->session->data['econt_delivery']['customer_info']['email'];
+	        $this->session->data['shipping_address']['telephone'] = $this->session->data['econt_delivery']['customer_info']['phone'];
             if($this->session->data['econt_delivery']['customer_info']['office_code']) {
                 $this->session->data['shipping_address']['address_1'] = 'Econt office: ' . $this->session->data['econt_delivery']['customer_info']['office_name'];
                 $this->session->data['shipping_address']['address_2'] = $this->session->data['econt_delivery']['customer_info']['address'];
@@ -255,6 +257,13 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                     DB_PREFIX,
                     $this->db->escape(json_encode($this->session->data['econt_delivery']['customer_info']))
                 ));
+	
+	            $this->db->query("
+		            UPDATE `".DB_PREFIX."order`
+		            SET email = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['email'])."',
+		            telephone = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['phone'])."'
+		            WHERE order_id = $orderId
+		        ");
             }
         }
     }

@@ -62,8 +62,8 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 $email = $this->cart->customer->getEmail();
                 $phone = $this->cart->customer->getTelephone();
             } else {
-                $email = $this->session->data['guest']['email'] ?? '';
-                $phone = $this->session->data['guest']['telephone'] ?? '';
+	            $email = $this->session->data['shipping_address']['email'] ?? $this->session->data['guest']['email'] ?? '';
+	            $phone = $this->session->data['shipping_address']['telephone'] ?? $this->session->data['guest']['telephone'] ?? '';
             }
 
             $keys = explode('@',$this->config->get('shipping_econt_delivery_private_key'));
@@ -600,9 +600,9 @@ class ModelExtensionShippingEcontDelivery extends Model {
         $payment_method = $this->session->data['payment_method']['code'];
 
         if (in_array($payment_method, $payment_method_price_map)) {
-            return @floatval($payment_method_price_map[$payment_method]);
+	        return round(@floatval($payment_method_price_map[$payment_method]), 2);
         } else {
-            return @floatval($this->session->data['econt_delivery']['customer_info']['shipping_price']);
+	        return round(@floatval($this->session->data['econt_delivery']['customer_info']['shipping_price']), 2);
         }
     }
 
