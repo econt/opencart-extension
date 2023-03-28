@@ -260,7 +260,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 	
 	            $this->db->query("
 		            UPDATE `".DB_PREFIX."order`
-		            SET email = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['email'])."',
+		            SET firstname = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['name'])."',
+		            email = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['email'])."',
 		            telephone = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['phone'])."'
 		            WHERE order_id = $orderId
 		        ");
