@@ -36,15 +36,16 @@ class ModelExtensionShippingEcontDelivery extends Model {
             ",
                 DB_DATABASE,
                 DB_PREFIX,
-                $address['country_id'],
-                $address['zone_id']
+                (int)$address['country_id'],
+                (int)$address['zone_id']
             ));
             if (intval($result->row['zoneIdsCount']) <= 0) return array();
         }
 	
 	    $this->load->model('setting/setting');
 	    $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
-	    if($settings['shipping_econt_delivery_checkout_mode'] == 'onestep' && $this->session->data['shipping_address']['firstname'] == '8a9ggua0sjm$Fn'){
+        $this->econtDeliveryOneStepCheckoutEnabled = $settings['shipping_econt_delivery_checkout_mode'] == 'onestep';
+	    if($this->econtDeliveryOneStepCheckoutEnabled && $this->session->data['shipping_address']['firstname'] == '8a9ggua0sjm$Fn'){
 		    $this->session->data['shipping_address']['company']     = '';
 		    $this->session->data['shipping_address']['firstname']   = '';
 		    $this->session->data['shipping_address']['lastname']    = '';
@@ -57,7 +58,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
         
         $this->oneStepCheckoutModuleEnabled = $this->request->request['route'] == 'extension/quickcheckout/shipping_method';
         $this->load->language('extension/shipping/econt_delivery');
-        if($this->request->request['route'] == 'checkout/shipping_method' || $this->oneStepCheckoutModuleEnabled) {
+        if($this->request->request['route'] == 'checkout/shipping_method' || $this->oneStepCheckoutModuleEnabled || $this->econtDeliveryOneStepCheckoutEnabled) {
             if($this->cart->customer && $this->cart->customer->getEmail()) {
                 $email = $this->cart->customer->getEmail();
                 $phone = $this->cart->customer->getTelephone();
@@ -86,6 +87,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
             if (!empty($officeCode)) $frameParams['customer_office_code'] = $officeCode;
             $zip = trim($this->session->data['econt_delivery']['customer_info']['zip'] ?? '');
             if (!empty($zip)) $frameParams['customer_zip'] = $zip;
+            if($this->econtDeliveryOneStepCheckoutEnabled) $frameParams['module'] = 'onecheckout';
 
             $deliveryBaseURL = $settings['shipping_econt_delivery_system_url'];
             $frameURL = $deliveryBaseURL.'/customer_info.php?'. http_build_query($frameParams, '', '&');
@@ -95,163 +97,203 @@ class ModelExtensionShippingEcontDelivery extends Model {
             ?>
             <script>
                 (function($){
-                    var $econtRadio = $('input:radio[value=\'econt_delivery.econt_delivery\']');
-
-                    <?php if ($this->oneStepCheckoutModuleEnabled) { ?>
-                        var useShipping = false;
-                        var useShippingCheckBox = $('#shipping')[0];
-                        var customerInfoUrl = "<?php echo $frameURL?>";
-                        var splited = customerInfoUrl.split('&').map(param => param.split('='));
-                        var fieldsData = [];
-                        var calculateButtonText = '<?php echo $this->language->get('text_delivery_method_calculate_button');?>';
-                        var changeInfoButtonText = '<?php echo $this->language->get('text_delivery_method_change_button');?>';
-                        var hasPrice = false;
-                        var userIsLogged = false;
-
-                        <?php if($this->customer->isLogged()) echo 'userIsLogged = true;'; ?>
-
-                        if (userIsLogged === false && useShippingCheckBox.checked === false) {
-                            useShipping = true;
-                        }
-
-                        var fields = [
-                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname',
-                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname',
-                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-country',
-                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1',
-                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city',
-                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-zone',
-                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode',
-                            '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company',
-                            '#input-payment-telephone',
-                            '#input-payment-email'
-                        ]
-
-                        var getFields = function () {
-                            fields.forEach( function( field ) {
-                                fieldsData[field] = $( field ).val()
-                                if (field.indexOf('-zone') > -1) {
-                                    var select = $(field)[0].options;
-                                    var selected = $( field ).val();
-                                    var selectedText = '';
-                                    for (var i = 0; i < select.length; i++) {
-                                        if (select[i].value === selected) {
-                                            selectedText = select[i].text
-                                        }
-                                    }
-
-                                    fieldsData[field] = selectedText;
-                                }
-                            });
-                            return fieldsData;
-                        }
-
-                        var getUrl = function(data) {
-                            var name;
-                            var company;
-                            var dataArray = [];
-
-                            for (var x = 0; x < 4; x++){
-                                dataArray.push(splited[x]);
+                    <?php if($this->econtDeliveryOneStepCheckoutEnabled) { ?>
+                        var shippingInfo = null;
+                        var panelBody = $('div#collapse-checkout-confirm > div.panel-body');
+                    
+                        var $econtLabelText = $('<span id="econtDeliveryInfo" style="display: block"></span>').text(<?php echo json_encode($deliveryMethodTxt)?>);
+                        panelBody.prepend($econtLabelText);
+                        
+                        var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>');
+                        panelBody.prepend($hiddenTextArea);
+                        
+                        var $frame = $('<iframe id="econtDeliverFrame" src="<?php echo $frameURL?>"></iframe>');
+                        panelBody.prepend($frame);
+                    
+                        var toggleButton = $('<button id="toggleEcontDeliveryCustomerInfo" class="btn btn-primary" style="display: none;"><?=$this->language->get('text_delivery_method_change_button');?></button>');
+                        toggleButton.click(function (){
+                            $('#econtDeliverFrame')[0].style.display = 'block';
+                            $('#toggleEcontDeliveryCustomerInfo')[0].style.display = 'none';
+                        });
+                        panelBody.prepend(toggleButton);
+                        
+                        var productTable = $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive');
+                        productTable[0].style.marginTop = '60px';
+                    
+                        $('input:radio[name=payment_method]').change(
+                            function(){
+                                $.post('<?=HTTPS_SERVER?>index.php?route=extension/shipping/econt_delivery/onChangePaymentMethod',
+                                    {payment_method: $('input:radio[name=payment_method]:checked').val()},
+                                    function(response){
+                                        var $scripts = $('div.buttons + script')[0];
+                                        if($scripts) $scripts.remove();
+                                        var $buttons = $('div.buttons')[1];
+                                        if($buttons) $buttons.remove();
+                                        $('div#collapse-checkout-confirm > div.panel-body').append(response);
+                                    }, 'text');
                             }
-
-                            // if (data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company'].length) {
-                                company = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company'];
-                                name = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname'] + ' ' + data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname'];
-                            // } else {
-                            //     name = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname'] + ' ' + data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname'];
-                            //     company = ''
-                            // }
-
-                            var additional = [
-                                ["customer_company", company],
-                                ["customer_name", name],
-                                ["customer_phone", data['#input-payment-telephone']],
-                                ["customer_email", data['#input-payment-email']],
-                                ["customer_city_name", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city']],
-                                ["customer_post_code", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode']],
-                                ["customer_address", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1']],
-                                ["customer_address", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1']],
-                                ['ignore_history', true]
+                        );
+                        
+                    <?php } else { ?>
+                        var $econtRadio = $('input:radio[value=\'econt_delivery.econt_delivery\']');
+    
+                        <?php if ($this->oneStepCheckoutModuleEnabled) { ?>
+                            var useShipping = false;
+                            var useShippingCheckBox = $('#shipping')[0];
+                            var customerInfoUrl = "<?php echo $frameURL?>";
+                            var splited = customerInfoUrl.split('&').map(param => param.split('='));
+                            var fieldsData = [];
+                            var calculateButtonText = '<?php echo $this->language->get('text_delivery_method_calculate_button');?>';
+                            var changeInfoButtonText = '<?php echo $this->language->get('text_delivery_method_change_button');?>';
+                            var hasPrice = false;
+                            var userIsLogged = false;
+    
+                            <?php if($this->customer->isLogged()) echo 'userIsLogged = true;'; ?>
+    
+                            if (userIsLogged === false && useShippingCheckBox.checked === false) {
+                                useShipping = true;
+                            }
+    
+                            var fields = [
+                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname',
+                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname',
+                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-country',
+                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1',
+                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city',
+                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-zone',
+                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode',
+                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company',
+                                '#input-payment-telephone',
+                                '#input-payment-email'
                             ]
-
-                            additional.forEach( entry => {
-                                dataArray.push(entry)
-                            });
-
-                            return dataArray.map(param => param.join('=')).join('&');
-                        }
-
-                        var setButtonText = function () {
-                            hasPrice = true;
-                            $('#openEcontModal').text(changeInfoButtonText);
-                        }
-
-                        $econtRadio.closest('tr').after('' +
-                            '<tr id="econt_delivery_row">' +
-                                '<td colspan="3">' +
-                                    '<div id="econt_iframe_wrapper"><div id="econt_iframe_inner"><span id="closeEcontModal" class="close-econt-modal">x</span></div></div>' +
-                                    '<div>' +
-                                        '<button type="button" id="openEcontModal" ' +
-                                            'class="btn btn-primary" style="float: right;">' + ( hasPrice ? changeInfoButtonText : calculateButtonText ) + '</button>' +
-                                    '</div>' +
-                                '</td>' +
-                            '</tr>' +
-                        '');
-
-                        $('#closeEcontModal').on('click', function () {
-                            $("#econt_iframe_wrapper").css('display', 'none')
-                            $('html body').removeClass('background-muted')
-                            if ($frame) {
-                                $frame.remove();
-                                $frame = null;
+    
+                            var getFields = function () {
+                                fields.forEach( function( field ) {
+                                    fieldsData[field] = $( field ).val()
+                                    if (field.indexOf('-zone') > -1) {
+                                        var select = $(field)[0].options;
+                                        var selected = $( field ).val();
+                                        var selectedText = '';
+                                        for (var i = 0; i < select.length; i++) {
+                                            if (select[i].value === selected) {
+                                                selectedText = select[i].text
+                                            }
+                                        }
+    
+                                        fieldsData[field] = selectedText;
+                                    }
+                                });
+                                return fieldsData;
                             }
-                        })
-
-                        $('#openEcontModal').on('click', function () {
-                            var preparedFields = getFields();
-                            var url = getUrl(preparedFields);
-
-                            if(!$frame) {
-                                $frame = $('<iframe id="econtDeliverFrame" src="' + url + '"></iframe>');
-                                $("#econt_iframe_inner").append($frame);
+    
+                            var getUrl = function(data) {
+                                var name;
+                                var company;
+                                var dataArray = [];
+    
+                                for (var x = 0; x < 4; x++){
+                                    dataArray.push(splited[x]);
+                                }
+    
+                                // if (data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company'].length) {
+                                    company = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company'];
+                                    name = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname'] + ' ' + data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname'];
+                                // } else {
+                                //     name = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname'] + ' ' + data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname'];
+                                //     company = ''
+                                // }
+    
+                                var additional = [
+                                    ["customer_company", company],
+                                    ["customer_name", name],
+                                    ["customer_phone", data['#input-payment-telephone']],
+                                    ["customer_email", data['#input-payment-email']],
+                                    ["customer_city_name", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city']],
+                                    ["customer_post_code", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode']],
+                                    ["customer_address", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1']],
+                                    ["customer_address", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1']],
+                                    ['ignore_history', true]
+                                ]
+    
+                                additional.forEach( entry => {
+                                    dataArray.push(entry)
+                                });
+    
+                                return dataArray.map(param => param.join('=')).join('&');
                             }
-
-                            $("#econt_iframe_wrapper").css('display', 'block');
-                            $('html body').addClass('background-muted')
-                        })
-
-                    <?php } ?>
-
-                    var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>')
-                        .appendTo(<?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_inner")' : '$econtRadio.parent().parent()'; ?>);
-                    $econtRadio.parent().contents().each(function(i,el){if(el.nodeType == 3) el.nodeValue = '';});//zabursvane na originalniq text
-                    var $econtLabelText = $('<span></span>').text(<?php echo json_encode($deliveryMethodTxt)?>);
-                    var shippingInfo = null;
-                    var $frame = null;
-                    $econtRadio.after($econtLabelText);
-                    $econtRadio.click(function(){
-                        if(!$frame) {
-                            $frame = $('<iframe id="econtDeliverFrame" src="<?php echo $frameURL?>"></iframe>');
-                            <?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_inner").append($frame)' : '$econtRadio.parent().parent().append($frame)'; ?>
-                        }
-                    });
-                    $('input:radio[name=shipping_method]').change(function(){
-                        if(!$econtRadio.is(':checked')) {
-                        <?php if (!$this->oneStepCheckoutModuleEnabled) { ?>
-                            if ($frame) $frame.remove();
-                            $frame = null;
-                        <?php } else { ?>
-                            $('#econt_delivery_row').css('display', 'none')
+    
+                            var setButtonText = function () {
+                                hasPrice = true;
+                                $('#openEcontModal').text(changeInfoButtonText);
+                            }
+    
+                            $econtRadio.closest('tr').after('' +
+                                '<tr id="econt_delivery_row">' +
+                                    '<td colspan="3">' +
+                                        '<div id="econt_iframe_wrapper"><div id="econt_iframe_inner"><span id="closeEcontModal" class="close-econt-modal">x</span></div></div>' +
+                                        '<div>' +
+                                            '<button type="button" id="openEcontModal" ' +
+                                                'class="btn btn-primary" style="float: right;">' + ( hasPrice ? changeInfoButtonText : calculateButtonText ) + '</button>' +
+                                        '</div>' +
+                                    '</td>' +
+                                '</tr>' +
+                            '');
+    
+                            $('#closeEcontModal').on('click', function () {
+                                $("#econt_iframe_wrapper").css('display', 'none')
+                                $('html body').removeClass('background-muted')
+                                if ($frame) {
+                                    $frame.remove();
+                                    $frame = null;
+                                }
+                            })
+    
+                            $('#openEcontModal').on('click', function () {
+                                var preparedFields = getFields();
+                                var url = getUrl(preparedFields);
+    
+                                if(!$frame) {
+                                    $frame = $('<iframe id="econtDeliverFrame" src="' + url + '"></iframe>');
+                                    $("#econt_iframe_inner").append($frame);
+                                }
+    
+                                $("#econt_iframe_wrapper").css('display', 'block');
+                                $('html body').addClass('background-muted')
+                            })
+    
                         <?php } ?>
-                        } else {
-                            <?php if ($this->oneStepCheckoutModuleEnabled) { ?>
-                                $('#econt_delivery_row').css('display', 'table-row')
+    
+                        var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>')
+                            .appendTo(<?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_inner")' : '$econtRadio.parent().parent()'; ?>);
+                        $econtRadio.parent().contents().each(function(i,el){if(el.nodeType == 3) el.nodeValue = '';});//zabursvane na originalniq text
+                        var $econtLabelText = $('<span id="econtDeliveryInfo" style="display: block"></span>').text(<?php echo json_encode($deliveryMethodTxt)?>);
+                        var shippingInfo = null;
+                        var $frame = null;
+                        $econtRadio.after($econtLabelText);
+                        $econtRadio.click(function(){
+                            if(!$frame) {
+                                $frame = $('<iframe id="econtDeliverFrame" src="<?php echo $frameURL?>"></iframe>');
+                                <?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_inner").append($frame)' : '$econtRadio.parent().parent().append($frame)'; ?>
+                            }
+                        });
+                        $('input:radio[name=shipping_method]').change(function(){
+                            if(!$econtRadio.is(':checked')) {
+                            <?php if (!$this->oneStepCheckoutModuleEnabled) { ?>
+                                if ($frame) $frame.remove();
+                                $frame = null;
+                            <?php } else { ?>
+                                $('#econt_delivery_row').css('display', 'none')
                             <?php } ?>
-                        }
-                    });
-
-                    if($econtRadio.is(':checked')) $econtRadio.trigger('click');
+                            } else {
+                                <?php if ($this->oneStepCheckoutModuleEnabled) { ?>
+                                    $('#econt_delivery_row').css('display', 'table-row')
+                                <?php } ?>
+                            }
+                        });
+    
+                        if($econtRadio.is(':checked')) $econtRadio.trigger('click');
+                    <?php } ?>
+                    
                     $(window).unbind('message.econtShipping');
                     $(window).bind('message.econtShipping',function(e){
                         if(e.originalEvent.origin.indexOf('<?php echo $deliveryBaseURL?>') == 0) {
@@ -263,13 +305,21 @@ class ModelExtensionShippingEcontDelivery extends Model {
                                 <?php } ?>
                                 shippingInfo = e.originalEvent.data;
                                 <?php echo $this->oneStepCheckoutModuleEnabled ? "$('#econt_iframe_wrapper').css('display', 'none');\n $('html body').removeClass('background-muted');" : ''; ?>
-                                $frame.remove();
-                                $frame = null;
+                                <?php if($this->econtDeliveryOneStepCheckoutEnabled) { ?>
+                                    // debugger;
+                                    $frame[0].style.display = 'none';
+                                    toggleButton[0].style.display = 'block';
+                                <?php } else { ?>
+                                    $frame.remove();
+                                    $frame = null;
+                                <?php } ?>
+                                
                                 var labelTxt = <?php echo $this->oneStepCheckoutModuleEnabled ? '' : json_encode($deliveryMethodTxt . ' - ') ?> + shippingInfo.shipping_price + ' ' + shippingInfo.shipping_price_currency_sign;
                                 if(shippingInfo.shipping_price != shippingInfo.shipping_price_cod) {
                                     labelTxt += ' (+ ' + (shippingInfo.shipping_price_cod - shippingInfo.shipping_price).toFixed(2) + ' ' + shippingInfo.shipping_price_currency_sign + ' ' + <?php echo json_encode($deliveryMethodPriceCD)?> + ')'
                                 }
                                 $hiddenTextArea.val(JSON.stringify(e.originalEvent.data));
+                                
                                 <?php
                                     if ($this->oneStepCheckoutModuleEnabled) { ?>
                                         var date = new Date();
@@ -309,9 +359,19 @@ class ModelExtensionShippingEcontDelivery extends Model {
                                             document.getElementById( 'input-payment-telephone' ).value = data['phone'];
                                         if ( document.getElementById( 'input-payment-email' ) )
                                             document.getElementById( 'input-payment-email' ).value = data['email'];
-                                <?php } else {
-                                    ?>$econtLabelText.text(labelTxt);<?php
-                                } ?>
+                                <?php } else { ?>
+                                    $econtLabelText.text(labelTxt);
+                                <?php } ?>
+                                
+                                <?php if($this->econtDeliveryOneStepCheckoutEnabled) { ?>
+                                    $.post('<?=HTTPS_SERVER?>index.php?route=extension/shipping/econt_delivery/beforeCartSaveShipping',
+                                        {customerInfo: shippingInfo, payment_method: $('input:radio[name=payment_method]:checked').val()}, function(response){
+                                            var $tmp = $('<div></div>');
+                                            $tmp.html(response);
+                                            $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive').empty();
+                                            $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive').html($('div.table-responsive', $tmp).html())
+                                        }, 'text');
+                                <?php } ?>
                             }
                         }
                     });
@@ -348,7 +408,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
                         border: none;
                         margin-top: 0;
                     }
-
+                    
                     .close-econt-modal {
                         float: right;
                         font-size: 24px;
@@ -383,7 +443,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
             } else { ?>
                 <style>
                     #econtDeliverFrame {
-                        width: 80%;
+                        width: 100%;
                         height: 750px;
                         border: 0;
                     }
@@ -459,7 +519,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
         $orderId = @intval($this->request->get['order_id']);
         if ($orderId <= 0) {
             if ($this->request->get['route'] === 'api/order/add') {
-                $orderId = intval(reset($data));
+                //$orderId = intval(reset($data));
                 if ($orderId <= 0) return null;
 
                 if (!empty($this->session->data['econt_delivery']['customer_info'])) $this->db->query(sprintf("
@@ -478,6 +538,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
             }
         }
 
+        if(is_null($this->model_checkout_order)) $this->load->model('checkout/order');
         $orderData = $this->model_checkout_order->getOrder($orderId);
         if (empty($orderData) || $orderData['shipping_code'] !== 'econt_delivery.econt_delivery') return null;
 
@@ -591,7 +652,8 @@ class ModelExtensionShippingEcontDelivery extends Model {
         }
 
         $aData = $this->session->data['econt_delivery']['customer_info'];
-
+        if(is_null($aData)) return;
+        
         $payment_method_price_map = [
             'cod' => array_key_exists('shipping_price_cod', $aData) ? $aData['shipping_price_cod'] : 0,
             'econt_payment' => array_key_exists('shipping_price_cod_e', $aData) ? $aData['shipping_price_cod_e'] : 0,

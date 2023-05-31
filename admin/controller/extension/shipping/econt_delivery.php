@@ -61,6 +61,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         //Econt "one step" checkout
 	    $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/checkout/after', 'extension/shipping/econt_delivery/afterViewCheckoutCheckout');
 	    $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/login/after', 'extension/shipping/econt_delivery/afterViewCheckoutLogin');
+	    $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/confirm/after', 'extension/shipping/econt_delivery/afterViewCheckoutConfirm');
         
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/guest/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/register/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');

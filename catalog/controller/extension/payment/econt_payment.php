@@ -86,6 +86,13 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
         } catch (Exception $exception) {
             $templateData['econtPaymentError'] = $exception->getMessage();
         }
+		$this->language->load('checkout/checkout');
+		if(is_null($this->model_catalog_information)) $this->load->model('catalog/information');
+	    $information_info = $this->model_catalog_information->getInformation($this->config->get('config_checkout_id'));
+		$templateData['termsError'] = sprintf($this->language->get('error_agree'), $information_info['title']);
+	    
+	    $this->language->load('extension/shipping/econt_delivery');
+		$templateData['shippingError'] = $this->language->get('err_missing_customer_info');
 
         return $this->load->view('extension/payment/econt_payment', $templateData);
 	}
@@ -97,6 +104,13 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
 
         $response = array();
         try {
+	        $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+	        if($settings['shipping_econt_delivery_checkout_mode'] == 'onestep'){
+		        if(!isset($this->request->post['agree'])){
+			        throw new Exception($this->language->get('error_agree'));
+		        }
+	        }
+			
             $orderID = @intval($this->session->data['order_id']);
             if ($orderID <= 0) throw new Exception($this->language->get('error_payment_error'));
 
