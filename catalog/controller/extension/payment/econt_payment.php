@@ -104,13 +104,6 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
 
         $response = array();
         try {
-	        $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
-	        if($settings['shipping_econt_delivery_checkout_mode'] == 'onestep'){
-		        if(!isset($this->request->post['agree'])){
-			        throw new Exception($this->language->get('error_agree'));
-		        }
-	        }
-			
             $orderID = @intval($this->session->data['order_id']);
             if ($orderID <= 0) throw new Exception($this->language->get('error_payment_error'));
 
@@ -122,7 +115,12 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
             if (empty($econtPaymentSettings) || !is_array($econtPaymentSettings)) throw new Exception($this->language->get('error_payment_error'));
 
             $paymentEMail = @trim($this->session->data['econt_delivery']['customer_info']['email']);
-
+	        
+	        $order = $this->model_checkout_order->getOrder($orderID);
+			if(!empty($order)){
+				$order['comment'] = $this->db->escape($this->session->data['comment']);
+				$this->model_checkout_order->editOrder($orderID, $order);
+			}
             $this->model_checkout_order->addOrderHistory($orderID, $econtPaymentSettings['payment_econt_payment_order_status_payment_processing_id'], 'EcontPay: Payment Processing / EcontPay: Очаква се плащане');
 
             $this->cart->clear();

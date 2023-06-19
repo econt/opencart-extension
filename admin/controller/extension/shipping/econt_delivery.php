@@ -96,7 +96,9 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             if($this->request->post['shipping_econt_delivery_private_key'] != $oldSettings['shipping_econt_delivery_private_key'] ||
                 $this->request->post['shipping_econt_delivery_system_url'] != $oldSettings['shipping_econt_delivery_system_url']
                 ) {
-                try {
+	            //$settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+	            $checkoutType = $this->request->post['shipping_econt_delivery_checkout_mode'] == 'onestep' ? '-1step' : '-normal';
+	            try {
                     $curl = curl_init();
                     curl_setopt($curl, CURLOPT_URL, "{$this->request->post['shipping_econt_delivery_system_url']}/services/PluginsService.logEvent.json");
                     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -109,7 +111,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                     curl_setopt($curl, CURLOPT_POST, true);
                     curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode([[
                         'plugin_type' => 'opencart',
-                        'action' => 'activate'
+                        'action' => 'activate'.$checkoutType
                     ]]));
                     curl_setopt($curl, CURLOPT_TIMEOUT, 6);
                     curl_exec($curl);

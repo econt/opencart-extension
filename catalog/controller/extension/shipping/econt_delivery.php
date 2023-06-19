@@ -243,6 +243,10 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 		$this->response->setOutput($this->fixCOD($html));
 	}
 	
+	public function onChangeComment(){
+		$this->session->data['comment'] = strip_tags($this->request->request['comment']);
+	}
+	
 	public function fixCOD($html){
 		if(strpos($html, "url: 'index.php?route=extension/payment/cod/confirm'") !== false){
 			$this->language->load('checkout/checkout');
@@ -334,7 +338,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 		            UPDATE `".DB_PREFIX."order`
 		            SET firstname = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['name'])."',
 		            email = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['email'])."',
-		            telephone = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['phone'])."'
+		            telephone = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['phone'])."',
+		            comment = '".$this->db->escape($this->session->data['comment'])."'
 		            WHERE order_id = $orderId
 		        ");
             }

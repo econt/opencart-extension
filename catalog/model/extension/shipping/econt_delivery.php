@@ -134,6 +134,14 @@ class ModelExtensionShippingEcontDelivery extends Model {
                             }
                         );
                         
+                        $('textarea[name=comment]').change(
+                            function(){
+                                $.post('<?=HTTPS_SERVER?>index.php?route=extension/shipping/econt_delivery/onChangeComment',
+                                    {comment: $('textarea[name=comment]').val()}, null, 'text'
+                                );
+                            }
+                        );
+                        
                     <?php } else { ?>
                         var $econtRadio = $('input:radio[value=\'econt_delivery.econt_delivery\']');
     
