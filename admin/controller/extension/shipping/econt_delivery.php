@@ -93,10 +93,11 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             $oldSettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
             $this->model_setting_setting->editSetting('shipping_econt_delivery', $this->request->post);//
 
-            if($this->request->post['shipping_econt_delivery_private_key'] != $oldSettings['shipping_econt_delivery_private_key'] ||
-                $this->request->post['shipping_econt_delivery_system_url'] != $oldSettings['shipping_econt_delivery_system_url']
-                ) {
-	            //$settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+            if(
+                $this->request->post['shipping_econt_delivery_private_key'] != $oldSettings['shipping_econt_delivery_private_key'] ||
+                $this->request->post['shipping_econt_delivery_system_url'] != $oldSettings['shipping_econt_delivery_system_url'] ||
+	            $this->request->post['shipping_econt_delivery_checkout_mode'] != $oldSettings['shipping_econt_delivery_checkout_mode']
+            ){
 	            $checkoutType = $this->request->post['shipping_econt_delivery_checkout_mode'] == 'onestep' ? '-1step' : '-normal';
 	            try {
                     $curl = curl_init();
