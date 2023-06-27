@@ -550,7 +550,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 if (!in_array($currentRow['code'], array('shipping', 'total'))) $total += $currentRow['value'];
                 return $total;
             }, 0);
-            $discount = $orderTotal - $productTotal;
+            $discount = round($orderTotal - $productTotal,2);
             if ($discount != 0) {
                 $order['partialDelivery'] = 0;
                 $order['items'][] = array(
