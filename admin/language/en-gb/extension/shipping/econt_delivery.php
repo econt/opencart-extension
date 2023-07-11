@@ -23,6 +23,9 @@ $_['text_shipping_via_econt'] = 'Econt Delivery';
 $_['text_trace_shipping'] = 'Track and trace shipment';
 $_['text_invalid_order_id'] = 'Invalid Order ID!';
 $_['text_invalid_shipping_method'] = 'Invalid Order ID';
+$_['text_checkout_mode'] = 'Checkout mode';
+$_['text_checkout_mode_normal'] = 'Normal';
+$_['text_checkout_mode_onestep'] = 'One step';
 
 $_['text_order_list_econt_shipping_column_label'] = 'Econt Waybill';
 $_['text_order_list_econt_shipping_column_prepare_loading'] = 'Prepare loading';

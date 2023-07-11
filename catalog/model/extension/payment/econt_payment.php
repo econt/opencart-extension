@@ -55,7 +55,7 @@ class ModelExtensionPaymentEcontPayment extends Model {
         $languagesQueryResult = $this->db->query(sprintf("
             SELECT
                 l.language_id AS id
-            FROM {$DBName}.{$DBTablePrefix}language AS l
+            FROM `{$DBName}`.`{$DBTablePrefix}language` AS l
             WHERE TRUE
                 AND l.code = '%s'
             LIMIT 1

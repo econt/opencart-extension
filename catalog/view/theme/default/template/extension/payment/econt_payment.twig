@@ -10,6 +10,16 @@
     </div>
     <script>
         $('#button-confirm-econt-payment').on('click', function() {
+            if(!$('input:checkbox[name=agree]')[0].checked){
+                alert('{{ termsError }}');
+                return;
+            }
+
+            if($('textarea[name=econt_delivery_shipping_info]').val() == ''){
+                alert('{{ shippingError }}');
+                return;
+            }
+
             $.ajax({
                 url: 'index.php?route=extension/payment/econt_payment/confirm',
                 beforeSend: function() {

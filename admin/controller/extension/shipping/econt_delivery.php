@@ -51,12 +51,18 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/payment_method/save/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/shipping_method/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
+        
         /*OneStepCheckout*/
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/payment_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/shipping_method/validate/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/quickcheckout/cart/before', 'extension/shipping/econt_delivery/updateShippingPrice');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/payment/cod/confirm/before', 'extension/shipping/econt_delivery/afterCheckoutConfirm');
-//        end
+	
+        //Econt "one step" checkout
+	    $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/checkout/after', 'extension/shipping/econt_delivery/afterViewCheckoutCheckout');
+	    $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/login/after', 'extension/shipping/econt_delivery/afterViewCheckoutLogin');
+	    $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/confirm/after', 'extension/shipping/econt_delivery/afterViewCheckoutConfirm');
+        
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/guest/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/register/after', 'extension/shipping/econt_delivery/afterViewCheckoutBilling');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/confirm/after', 'extension/shipping/econt_delivery/afterCheckoutConfirm');
@@ -87,10 +93,13 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             $oldSettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
             $this->model_setting_setting->editSetting('shipping_econt_delivery', $this->request->post);//
 
-            if($this->request->post['shipping_econt_delivery_private_key'] != $oldSettings['shipping_econt_delivery_private_key'] ||
-                $this->request->post['shipping_econt_delivery_system_url'] != $oldSettings['shipping_econt_delivery_system_url']
-                ) {
-                try {
+            if(
+                $this->request->post['shipping_econt_delivery_private_key'] != $oldSettings['shipping_econt_delivery_private_key'] ||
+                $this->request->post['shipping_econt_delivery_system_url'] != $oldSettings['shipping_econt_delivery_system_url'] ||
+	            $this->request->post['shipping_econt_delivery_checkout_mode'] != $oldSettings['shipping_econt_delivery_checkout_mode']
+            ){
+	            $checkoutType = $this->request->post['shipping_econt_delivery_checkout_mode'] == 'onestep' ? '-1step' : '-normal';
+	            try {
                     $curl = curl_init();
                     curl_setopt($curl, CURLOPT_URL, "{$this->request->post['shipping_econt_delivery_system_url']}/services/PluginsService.logEvent.json");
                     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -103,7 +112,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                     curl_setopt($curl, CURLOPT_POST, true);
                     curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode([[
                         'plugin_type' => 'opencart',
-                        'action' => 'activate'
+                        'action' => 'activate'.$checkoutType
                     ]]));
                     curl_setopt($curl, CURLOPT_TIMEOUT, 6);
                     curl_exec($curl);

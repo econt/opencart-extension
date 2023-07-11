@@ -86,6 +86,13 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
         } catch (Exception $exception) {
             $templateData['econtPaymentError'] = $exception->getMessage();
         }
+		$this->language->load('checkout/checkout');
+		if(is_null($this->model_catalog_information)) $this->load->model('catalog/information');
+	    $information_info = $this->model_catalog_information->getInformation($this->config->get('config_checkout_id'));
+		$templateData['termsError'] = sprintf($this->language->get('error_agree'), $information_info['title']);
+	    
+	    $this->language->load('extension/shipping/econt_delivery');
+		$templateData['shippingError'] = $this->language->get('err_missing_customer_info');
 
         return $this->load->view('extension/payment/econt_payment', $templateData);
 	}
@@ -108,7 +115,12 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
             if (empty($econtPaymentSettings) || !is_array($econtPaymentSettings)) throw new Exception($this->language->get('error_payment_error'));
 
             $paymentEMail = @trim($this->session->data['econt_delivery']['customer_info']['email']);
-
+	        
+	        $order = $this->model_checkout_order->getOrder($orderID);
+			if(!empty($order)){
+				$order['comment'] = $this->db->escape($this->session->data['comment']);
+				$this->model_checkout_order->editOrder($orderID, $order);
+			}
             $this->model_checkout_order->addOrderHistory($orderID, $econtPaymentSettings['payment_econt_payment_order_status_payment_processing_id'], 'EcontPay: Payment Processing / EcontPay: Очаква се плащане');
 
             $this->cart->clear();
