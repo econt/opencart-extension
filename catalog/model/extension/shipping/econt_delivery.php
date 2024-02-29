@@ -23,7 +23,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
 
     public function getQuote($address) {
         $geoZoneId = intval($this->config->get('shipping_econt_delivery_geo_zone_id'));
-        if ($geoZoneId !== 0) {
+        if ($geoZoneId !== 0 && !empty($address['country_id']) && !empty($address['zone_id'])) {
             $result = $this->db->query(sprintf("
                 SELECT
                     COUNT(z.zone_to_geo_zone_id) AS zoneIdsCount

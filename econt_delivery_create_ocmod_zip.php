@@ -39,7 +39,7 @@ $zip->addFromString('install.xml', "<?xml version=\"1.0\" encoding=\"utf-8\"?>
 <modification>
     <code>econt_delivery_and_payment" . trim(`git rev-parse --short HEAD`) . "</code>
     <name>Econt payment and delivery</name>
-    <version>1.6.0</version>
+    <version>1.6.7</version>
     <author>Econt Express</author>
     <link>https://delivery.econt.com</link>
 </modification>");

@@ -112,7 +112,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 				if($this->config->get('shipping_'.$result['code'].'_status')){
 					$this->load->model('extension/shipping/'.$result['code']);
 					ob_start();
-					$quote = $this->{'model_extension_shipping_'.$result['code']}->getQuote(empty($this->session->data['shipping_address']));
+					$quote = $this->{'model_extension_shipping_'.$result['code']}->getQuote($this->session->data['shipping_address']);
 					ob_clean();
 					
 					if($quote){
