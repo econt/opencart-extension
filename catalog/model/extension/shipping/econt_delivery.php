@@ -59,9 +59,10 @@ class ModelExtensionShippingEcontDelivery extends Model {
         $this->oneStepCheckoutModuleEnabled = $this->request->request['route'] == 'extension/quickcheckout/shipping_method';
         $this->load->language('extension/shipping/econt_delivery');
         if($this->request->request['route'] == 'checkout/shipping_method' || $this->oneStepCheckoutModuleEnabled || $this->econtDeliveryOneStepCheckoutEnabled) {
-            if($this->cart->customer && $this->cart->customer->getEmail()) {
-                $email = $this->cart->customer->getEmail();
-                $phone = $this->cart->customer->getTelephone();
+	        $customer = $this->registry->get('customer');
+	        if($customer && $customer->getEmail()) {
+		        $email = $customer->getEmail();
+		        $phone = $customer->getTelephone();
             } else {
 	            $email = $this->session->data['shipping_address']['email'] ?? $this->session->data['guest']['email'] ?? '';
 	            $phone = $this->session->data['shipping_address']['telephone'] ?? $this->session->data['guest']['telephone'] ?? '';
