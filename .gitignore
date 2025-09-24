@@ -1,4 +1,6 @@
 *
 !/.gitignore
 !econt_delivery*
+!/wiki/
+!/wiki/**
 !econt_payment*
