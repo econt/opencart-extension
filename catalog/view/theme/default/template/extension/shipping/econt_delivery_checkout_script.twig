@@ -33,23 +33,36 @@
 
             $('input:radio[name=payment_method]').change(
                 function(){
-                    $.post('{{  constant("HTTPS_SERVER") }}index.php?route=extension/shipping/econt_delivery/onChangePaymentMethod',
-                        {payment_method: $('input:radio[name=payment_method]:checked').val()},
-                        function(response){
+                    $.ajax({
+                        url: '{{ constant("HTTPS_SERVER") }}index.php?route=extension/shipping/econt_delivery/onChangePaymentMethod',
+                        type: 'POST',
+                        async: false,  // This makes it synchronous
+                        data: {
+                            payment_method: $('input:radio[name=payment_method]:checked').val()
+                        },
+                        dataType: 'text',
+                        success: function(response) {
                             var $scripts = $('div.buttons + script')[0];
                             if($scripts) $scripts.remove();
                             var $buttons = $('div.buttons')[1];
                             if($buttons) $buttons.remove();
                             $('div#collapse-checkout-confirm > div.panel-body').append(response);
-                        }, 'text');
+                        }
+                    });
                 }
             );
 
             $('textarea[name=comment]').change(
                 function(){
-                    $.post('{{ constant("HTTPS_SERVER") }}index.php?route=extension/shipping/econt_delivery/onChangeComment',
-                        {comment: $('textarea[name=comment]').val()}, null, 'text'
-                    );
+                    $.ajax({
+                        url: '{{ constant("HTTPS_SERVER") }}index.php?route=extension/shipping/econt_delivery/onChangeComment',
+                        type: 'POST',
+                        async: false,  // This makes it synchronous
+                        data: {
+                            comment: $('textarea[name=comment]').val()
+                        },
+                        dataType: 'text'
+                    });
                 }
             );
 
@@ -234,9 +247,15 @@
         {% if isJournalOnePageCheckout %}
             $('.section-comments textarea').change(
                 function(){
-                    $.post('{{ constant("HTTPS_SERVER") }}index.php?route=extension/shipping/econt_delivery/onChangeComment',
-                        {comment: $(this).val()}, null, 'text'
-                    );
+                    $.ajax({
+                        url: '{{ constant("HTTPS_SERVER") }}index.php?route=extension/shipping/econt_delivery/onChangeComment',
+                        type: 'POST',
+                        async: false,  // This makes it synchronous
+                        data: {
+                            comment: $(this).val()
+                        },
+                        dataType: 'text'
+                    });
                 }
             );
         {% endif %}
@@ -318,17 +337,24 @@
                     {% endif %}
 
                     {% if econtDeliveryOneStepCheckoutEnabled or isJournalOnePageCheckout %}
-                        $.post('{{ constant("HTTPS_SERVER") }}index.php?route=extension/shipping/econt_delivery/beforeCartSaveShipping',
-                            {
+
+                        $.ajax({
+                            url: '{{ constant("HTTPS_SERVER") }}index.php?route=extension/shipping/econt_delivery/beforeCartSaveShipping',
+                            type: 'POST',
+                            async: false,  // This makes it synchronous
+                            data: {
                                 customerInfo: shippingInfo,
                                 payment_method: $('input:radio[name=payment_method]:checked').val(),
                                 shipping_method: $('input:radio[name=shipping_method]:checked').val(),
-                            }, function(response){
+                            },
+                            dataType: 'text',
+                            success: function(response) {
                                 var $tmp = $('<div></div>');
                                 $tmp.html(response);
                                 $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive').empty();
-                                $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive').html($('div.table-responsive', $tmp).html())
-                            }, 'text');
+                                $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive').html($('div.table-responsive', $tmp).html());
+                            }
+                        });
 
                         {% if isJournalOnePageCheckout %}
                             setTimeout(() => {
