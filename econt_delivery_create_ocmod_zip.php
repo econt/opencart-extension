@@ -10,7 +10,7 @@ $iterator       = new RecursiveIteratorIterator($directory_iterator, RecursiveIt
 $iterator->setMaxDepth(-1);
 
 //$regex_iterator = new RegexIterator($iterator, '/^.*econt_payment\.\w{3,}$/iJ');
-$regex_iterator = new RegexIterator($iterator, '/^.+econt_(payment|delivery|payment_logo_dark|payment_logo_light|pay_logo)\.\w{3,}$/i');
+$regex_iterator = new RegexIterator($iterator, '/^.+econt_(payment|delivery|delivery_customer_info_modal|delivery_checkout_script|payment_logo_dark|payment_logo_light|pay_logo)\.\w{3,}$/i');
 $regex_iterator->setMode(RecursiveRegexIterator::GET_MATCH);
 $regex_iterator->setFlags(RegexIterator::USE_KEY);
 

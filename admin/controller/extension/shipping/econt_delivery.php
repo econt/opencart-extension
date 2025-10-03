@@ -50,6 +50,29 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             DB_PREFIX
         ));
 
+        /**
+         * If the extension is reinstalled, then we need to add the payment token because the payment token is
+         * in econt_delivery queries, but previously was created only when econt_payment in installed.
+         */
+        $this->db->query("SET @dbname = DATABASE();
+            SET @tablename = '".DB_PREFIX."econt_delivery_customer_info';
+            SET @columnname = 'payment_token';
+            SET @preparedStatement = (SELECT IF(
+                            (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                WHERE
+                                (TABLE_SCHEMA = @dbname)
+                                AND (TABLE_NAME = @tablename)
+                                AND (COLUMN_NAME = @columnname)
+                              ) > 0,
+              'SELECT ''Column already exists'' AS result;',
+              'ALTER TABLE ".DB_PREFIX."econt_delivery_customer_info ADD COLUMN payment_token VARCHAR(50) DEFAULT NULL;'
+            ));
+            
+            PREPARE alterIfNotExists FROM @preparedStatement;
+            EXECUTE alterIfNotExists;
+            DEALLOCATE PREPARE alterIfNotExists;
+        ");
+
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/payment_method/save/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/shipping_method/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/checkout/shipping_method/after', 'extension/shipping/econt_delivery/loadEcontScripts');
@@ -84,6 +107,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/journal3/checkout/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/journal3/checkout/checkout/after', 'extension/shipping/econt_delivery/loadEcontScripts');
     }
+
     public function uninstall() {
         $this->load->model('setting/event');
 
