@@ -54,24 +54,19 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
          * If the extension is reinstalled, then we need to add the payment token because the payment token is
          * in econt_delivery queries, but previously was created only when econt_payment in installed.
          */
-        $this->db->query("SET @dbname = DATABASE();
-            SET @tablename = '".DB_PREFIX."econt_delivery_customer_info';
-            SET @columnname = 'payment_token';
-            SET @preparedStatement = (SELECT IF(
-                            (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-                                WHERE
-                                (TABLE_SCHEMA = @dbname)
-                                AND (TABLE_NAME = @tablename)
-                                AND (COLUMN_NAME = @columnname)
-                              ) > 0,
-              'SELECT ''Column already exists'' AS result;',
-              'ALTER TABLE ".DB_PREFIX."econt_delivery_customer_info ADD COLUMN payment_token VARCHAR(50) DEFAULT NULL;'
-            ));
-            
-            PREPARE alterIfNotExists FROM @preparedStatement;
-            EXECUTE alterIfNotExists;
-            DEALLOCATE PREPARE alterIfNotExists;
-        ");
+        // Check if column exists
+        $column_exists = $this->db->query("
+                            SELECT COUNT(*) as total 
+                            FROM INFORMATION_SCHEMA.COLUMNS 
+                            WHERE TABLE_SCHEMA = '" . DB_DATABASE . "' 
+                            AND TABLE_NAME = '" . DB_PREFIX . "econt_delivery_customer_info' 
+                            AND COLUMN_NAME = 'payment_token'
+                        ");
+
+        // Add column if it doesn't exist
+        if ($column_exists->row['total'] == 0) {
+            $this->db->query("ALTER TABLE `" . DB_PREFIX . "econt_delivery_customer_info` ADD COLUMN payment_token VARCHAR(50) DEFAULT NULL");
+        }
 
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/payment_method/save/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/checkout/shipping_method/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
