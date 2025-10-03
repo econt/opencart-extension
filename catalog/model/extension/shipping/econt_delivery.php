@@ -218,6 +218,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
             $deliveryMethodPriceCD = $this->language->get('text_delivery_method_description_cd');
 
             $data['is_logged'] = $this->customer->isLogged();
+            $data['is_journal_theme'] = $this->config->get('config_theme') === 'journal3';
             $data['isJournalOnePageCheckout'] = $this->isJournalOnePageCheckout();
             $data['deliveryBaseURL'] = $deliveryBaseURL;
             $data['frameURL'] = $frameURL;

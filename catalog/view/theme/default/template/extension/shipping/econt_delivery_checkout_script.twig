@@ -336,7 +336,7 @@
                         $econtLabelText.text(labelTxt);
                     {% endif %}
 
-                    {% if econtDeliveryOneStepCheckoutEnabled or isJournalOnePageCheckout %}
+                    {% if econtDeliveryOneStepCheckoutEnabled or is_journal_theme %}
 
                         $.ajax({
                             url: '{{ constant("HTTPS_SERVER") }}index.php?route=extension/shipping/econt_delivery/beforeCartSaveShipping',
@@ -435,6 +435,10 @@
             width: 100%;
             height: 750px;
             border: 0;
+        }
+
+        #collapse-shipping-method div.radio {
+            width: 100%;
         }
 
         {%  if isJournalOnePageCheckout %}
