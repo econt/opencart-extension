@@ -22,29 +22,31 @@ class ModelExtensionShippingEcontDelivery extends Model {
     private $econtDeliveryOneStepCheckoutEnabled = false;
 
     public function getQuote($address) {
+
         $geoZoneId = intval($this->config->get('shipping_econt_delivery_geo_zone_id'));
+
         if ($geoZoneId !== 0 && !empty($address['country_id']) && !empty($address['zone_id'])) {
-            $result = $this->db->query(sprintf("
+
+            $result = $this->db->query("
                 SELECT
                     COUNT(z.zone_to_geo_zone_id) AS zoneIdsCount
-                FROM `%s`.`%szone_to_geo_zone` AS z
+                FROM ".DB_PREFIX."zone_to_geo_zone AS z
                 WHERE TRUE
                     AND z.geo_zone_id = {$geoZoneId}
-                    AND z.country_id = %d
-                    AND z.zone_id IN (0, %d)
+                    AND z.country_id = ".(int)$address['country_id']."
+                    AND z.zone_id IN (0, ".(int)$address['zone_id'].")
                 LIMIT 1
-            ",
-                DB_DATABASE,
-                DB_PREFIX,
-                (int)$address['country_id'],
-                (int)$address['zone_id']
-            ));
-            if (intval($result->row['zoneIdsCount']) <= 0) return array();
+            ");
+
+            if (intval($result->row['zoneIdsCount']) <= 0) {
+                return array();
+            }
         }
 	
 	    $this->load->model('setting/setting');
 	    $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
         $this->econtDeliveryOneStepCheckoutEnabled = $settings['shipping_econt_delivery_checkout_mode'] == 'onestep';
+
 	    if($this->econtDeliveryOneStepCheckoutEnabled && $this->session->data['shipping_address']['firstname'] == '8a9ggua0sjm$Fn'){
 		    $this->session->data['shipping_address']['company']     = '';
 		    $this->session->data['shipping_address']['firstname']   = '';
@@ -58,9 +60,12 @@ class ModelExtensionShippingEcontDelivery extends Model {
         
         $this->oneStepCheckoutModuleEnabled = $this->request->request['route'] == 'extension/quickcheckout/shipping_method';
         $this->load->language('extension/shipping/econt_delivery');
-        if($this->request->request['route'] == 'checkout/shipping_method' || $this->oneStepCheckoutModuleEnabled || $this->econtDeliveryOneStepCheckoutEnabled) {
+
+        if(in_array($this->request->request['route'], ['journal3/checkout/save', 'checkout/shipping_method', 'checkout/checkout']) || $this->oneStepCheckoutModuleEnabled || $this->econtDeliveryOneStepCheckoutEnabled) {
+
 	        $customer = $this->registry->get('customer');
-	        if($customer && $customer->getEmail()) {
+	        
+            if($customer && $customer->getEmail()) {
 		        $email = $customer->getEmail();
 		        $phone = $customer->getTelephone();
             } else {
@@ -85,381 +90,30 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 'customer_address' => $this->session->data['shipping_address']['address_1'].' '.$this->session->data['shipping_address']['address_2'],
             );
             $officeCode = trim($this->session->data['econt_delivery']['customer_info']['office_code'] ?? '');
-            if (!empty($officeCode)) $frameParams['customer_office_code'] = $officeCode;
+            if (!empty($officeCode)) {
+                $frameParams['customer_office_code'] = $officeCode;
+            }
             $zip = trim($this->session->data['econt_delivery']['customer_info']['zip'] ?? '');
-            if (!empty($zip)) $frameParams['customer_zip'] = $zip;
-            if($this->econtDeliveryOneStepCheckoutEnabled) $frameParams['module'] = 'onecheckout';
+            if (!empty($zip)) {
+                $frameParams['customer_zip'] = $zip;
+            }
+            if($this->econtDeliveryOneStepCheckoutEnabled) {
+                $frameParams['module'] = 'onecheckout';
+            }
 
             $deliveryBaseURL = $settings['shipping_econt_delivery_system_url'];
             $frameURL = $deliveryBaseURL.'/customer_info.php?'. http_build_query($frameParams, '', '&');
             $deliveryMethodTxt = $this->language->get('text_delivery_method_description');
             $deliveryMethodPriceCD = $this->language->get('text_delivery_method_description_cd');
 
-            ?>
-            <script>
-                (function($){
-                    <?php if($this->econtDeliveryOneStepCheckoutEnabled) { ?>
-                        var shippingInfo = null;
-                        var panelBody = $('div#collapse-checkout-confirm > div.panel-body');
-                    
-                        var $econtLabelText = $('<span id="econtDeliveryInfo" style="display: block"></span>').text(<?php echo json_encode($deliveryMethodTxt)?>);
-                        panelBody.prepend($econtLabelText);
-                        
-                        var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>');
-                        panelBody.prepend($hiddenTextArea);
-                        
-                        var $frame = $('<iframe id="econtDeliverFrame" src="<?php echo $frameURL?>"></iframe>');
-                        panelBody.prepend($frame);
-                    
-                        var toggleButton = $('<button id="toggleEcontDeliveryCustomerInfo" class="btn btn-primary" style="display: none;"><?=$this->language->get('text_delivery_method_change_button');?></button>');
-                        toggleButton.click(function (){
-                            $('#econtDeliverFrame')[0].style.display = 'block';
-                            $('#toggleEcontDeliveryCustomerInfo')[0].style.display = 'none';
-                        });
-                        panelBody.prepend(toggleButton);
-                        
-                        var productTable = $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive');
-                        productTable[0].style.marginTop = '60px';
-                    
-                        $('input:radio[name=payment_method]').change(
-                            function(){
-                                $.post('<?=HTTPS_SERVER?>index.php?route=extension/shipping/econt_delivery/onChangePaymentMethod',
-                                    {payment_method: $('input:radio[name=payment_method]:checked').val()},
-                                    function(response){
-                                        var $scripts = $('div.buttons + script')[0];
-                                        if($scripts) $scripts.remove();
-                                        var $buttons = $('div.buttons')[1];
-                                        if($buttons) $buttons.remove();
-                                        $('div#collapse-checkout-confirm > div.panel-body').append(response);
-                                    }, 'text');
-                            }
-                        );
-                        
-                        $('textarea[name=comment]').change(
-                            function(){
-                                $.post('<?=HTTPS_SERVER?>index.php?route=extension/shipping/econt_delivery/onChangeComment',
-                                    {comment: $('textarea[name=comment]').val()}, null, 'text'
-                                );
-                            }
-                        );
-                        
-                    <?php } else { ?>
-                        var $econtRadio = $('input:radio[value=\'econt_delivery.econt_delivery\']');
-    
-                        <?php if ($this->oneStepCheckoutModuleEnabled) { ?>
-                            var useShipping = false;
-                            var useShippingCheckBox = $('#shipping')[0];
-                            var customerInfoUrl = "<?php echo $frameURL?>";
-                            var splited = customerInfoUrl.split('&').map(param => param.split('='));
-                            var fieldsData = [];
-                            var calculateButtonText = '<?php echo $this->language->get('text_delivery_method_calculate_button');?>';
-                            var changeInfoButtonText = '<?php echo $this->language->get('text_delivery_method_change_button');?>';
-                            var hasPrice = false;
-                            var userIsLogged = false;
-    
-                            <?php if($this->customer->isLogged()) echo 'userIsLogged = true;'; ?>
-    
-                            if (userIsLogged === false && useShippingCheckBox.checked === false) {
-                                useShipping = true;
-                            }
-    
-                            var fields = [
-                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname',
-                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname',
-                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-country',
-                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1',
-                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city',
-                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-zone',
-                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode',
-                                '#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company',
-                                '#input-payment-telephone',
-                                '#input-payment-email'
-                            ]
-    
-                            var getFields = function () {
-                                fields.forEach( function( field ) {
-                                    fieldsData[field] = $( field ).val()
-                                    if (field.indexOf('-zone') > -1) {
-                                        var select = $(field)[0].options;
-                                        var selected = $( field ).val();
-                                        var selectedText = '';
-                                        for (var i = 0; i < select.length; i++) {
-                                            if (select[i].value === selected) {
-                                                selectedText = select[i].text
-                                            }
-                                        }
-    
-                                        fieldsData[field] = selectedText;
-                                    }
-                                });
-                                return fieldsData;
-                            }
-    
-                            var getUrl = function(data) {
-                                var name;
-                                var company;
-                                var dataArray = [];
-    
-                                for (var x = 0; x < 4; x++){
-                                    dataArray.push(splited[x]);
-                                }
-    
-                                // if (data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company'].length) {
-                                    company = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company'];
-                                    name = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname'] + ' ' + data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname'];
-                                // } else {
-                                //     name = data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname'] + ' ' + data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname'];
-                                //     company = ''
-                                // }
-    
-                                var additional = [
-                                    ["customer_company", company],
-                                    ["customer_name", name],
-                                    ["customer_phone", data['#input-payment-telephone']],
-                                    ["customer_email", data['#input-payment-email']],
-                                    ["customer_city_name", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city']],
-                                    ["customer_post_code", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode']],
-                                    ["customer_address", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1']],
-                                    ["customer_address", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1']],
-                                    ['ignore_history', true]
-                                ]
-    
-                                additional.forEach( entry => {
-                                    dataArray.push(entry)
-                                });
-    
-                                return dataArray.map(param => param.join('=')).join('&');
-                            }
-    
-                            var setButtonText = function () {
-                                hasPrice = true;
-                                $('#openEcontModal').text(changeInfoButtonText);
-                            }
-    
-                            $econtRadio.closest('tr').after('' +
-                                '<tr id="econt_delivery_row">' +
-                                    '<td colspan="3">' +
-                                        '<div id="econt_iframe_wrapper"><div id="econt_iframe_inner"><span id="closeEcontModal" class="close-econt-modal">x</span></div></div>' +
-                                        '<div>' +
-                                            '<button type="button" id="openEcontModal" ' +
-                                                'class="btn btn-primary" style="float: right;">' + ( hasPrice ? changeInfoButtonText : calculateButtonText ) + '</button>' +
-                                        '</div>' +
-                                    '</td>' +
-                                '</tr>' +
-                            '');
-    
-                            $('#closeEcontModal').on('click', function () {
-                                $("#econt_iframe_wrapper").css('display', 'none')
-                                $('html body').removeClass('background-muted')
-                                if ($frame) {
-                                    $frame.remove();
-                                    $frame = null;
-                                }
-                            })
-    
-                            $('#openEcontModal').on('click', function () {
-                                var preparedFields = getFields();
-                                var url = getUrl(preparedFields);
-    
-                                if(!$frame) {
-                                    $frame = $('<iframe id="econtDeliverFrame" src="' + url + '"></iframe>');
-                                    $("#econt_iframe_inner").append($frame);
-                                }
-    
-                                $("#econt_iframe_wrapper").css('display', 'block');
-                                $('html body').addClass('background-muted')
-                            })
-    
-                        <?php } ?>
-    
-                        var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>')
-                            .appendTo(<?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_inner")' : '$econtRadio.parent().parent()'; ?>);
-                        $econtRadio.parent().contents().each(function(i,el){if(el.nodeType == 3) el.nodeValue = '';});//zabursvane na originalniq text
-                        var $econtLabelText = $('<span id="econtDeliveryInfo" style="display: block"></span>').text(<?php echo json_encode($deliveryMethodTxt)?>);
-                        var shippingInfo = null;
-                        var $frame = null;
-                        $econtRadio.after($econtLabelText);
-                        $econtRadio.click(function(){
-                            if(!$frame) {
-                                $frame = $('<iframe id="econtDeliverFrame" src="<?php echo $frameURL?>"></iframe>');
-                                <?php echo $this->oneStepCheckoutModuleEnabled ? '$("#econt_iframe_inner").append($frame)' : '$econtRadio.parent().parent().append($frame)'; ?>
-                            }
-                        });
-                        $('input:radio[name=shipping_method]').change(function(){
-                            if(!$econtRadio.is(':checked')) {
-                            <?php if (!$this->oneStepCheckoutModuleEnabled) { ?>
-                                if ($frame) $frame.remove();
-                                $frame = null;
-                            <?php } else { ?>
-                                $('#econt_delivery_row').css('display', 'none')
-                            <?php } ?>
-                            } else {
-                                <?php if ($this->oneStepCheckoutModuleEnabled) { ?>
-                                    $('#econt_delivery_row').css('display', 'table-row')
-                                <?php } ?>
-                            }
-                        });
-    
-                        if($econtRadio.is(':checked')) $econtRadio.trigger('click');
-                    <?php } ?>
-                    
-                    $(window).unbind('message.econtShipping');
-                    $(window).bind('message.econtShipping',function(e){
-                        if(e.originalEvent.origin.indexOf('<?php echo $deliveryBaseURL?>') == 0) {
-                            if(e.originalEvent.data.shipment_error) {
-                                alert(e.originalEvent.data.shipment_error)
-                            } else {
-                                <?php if ($this->oneStepCheckoutModuleEnabled) { ?>
-                                    setButtonText()
-                                <?php } ?>
-                                shippingInfo = e.originalEvent.data;
-                                <?php echo $this->oneStepCheckoutModuleEnabled ? "$('#econt_iframe_wrapper').css('display', 'none');\n $('html body').removeClass('background-muted');" : ''; ?>
-                                <?php if($this->econtDeliveryOneStepCheckoutEnabled) { ?>
-                                    // debugger;
-                                    $frame[0].style.display = 'none';
-                                    toggleButton[0].style.display = 'block';
-                                <?php } else { ?>
-                                    $frame.remove();
-                                    $frame = null;
-                                <?php } ?>
-                                
-                                var labelTxt = <?php echo $this->oneStepCheckoutModuleEnabled ? '' : json_encode($deliveryMethodTxt . ' - ') ?> + shippingInfo.shipping_price + ' ' + shippingInfo.shipping_price_currency_sign;
-                                if(shippingInfo.shipping_price != shippingInfo.shipping_price_cod) {
-                                    labelTxt += ' (+ ' + (shippingInfo.shipping_price_cod - shippingInfo.shipping_price).toFixed(2) + ' ' + shippingInfo.shipping_price_currency_sign + ' ' + <?php echo json_encode($deliveryMethodPriceCD)?> + ')'
-                                }
-                                $hiddenTextArea.val(JSON.stringify(e.originalEvent.data));
-                                
-                                <?php
-                                    if ($this->oneStepCheckoutModuleEnabled) { ?>
-                                        var date = new Date();
-                                        date.setTime(date.getTime() + (5 * 60 * 1000));
-                                        document.cookie = "econt_delivery_temporary_shipping_price=" + JSON.stringify(e.originalEvent.data) + "; expires=" + date;
-                                        loadCart();
-
-                                        var label = $('label[for="econt_delivery.econt_delivery"]').last();
-                                        label.empty().append(labelTxt);
-
-                                        /**
-                                         * Set billing form fields
-                                         */
-                                        var full_name = []
-                                        var company = ''
-                                        var data = e.originalEvent.data
-
-                                        if ( data['face'] != null ) {
-                                            full_name = data['face'].split( ' ' );
-                                            company = data['name'];
-                                        } else {
-                                            full_name = data['name'].split( ' ' );
-                                        }
-                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname' ) )
-                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-firstname' ).value = full_name[0];
-                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname' ) )
-                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-lastname' ).value = full_name[1] ? full_name[1] : '';
-                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company' ) )
-                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-company' ).value = company;
-                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1' ) )
-                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1' ).value = data['address'] != '' ? data['address'] : data['office_name'];
-                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city' ) )
-                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-city' ).value = data['city_name'];
-                                        if ( document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode' ) )
-                                            document.getElementById( 'input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode' ).value = data['post_code'];
-                                        if ( document.getElementById( 'input-payment-telephone' ) )
-                                            document.getElementById( 'input-payment-telephone' ).value = data['phone'];
-                                        if ( document.getElementById( 'input-payment-email' ) )
-                                            document.getElementById( 'input-payment-email' ).value = data['email'];
-                                <?php } else { ?>
-                                    $econtLabelText.text(labelTxt);
-                                <?php } ?>
-                                
-                                <?php if($this->econtDeliveryOneStepCheckoutEnabled) { ?>
-                                    $.post('<?=HTTPS_SERVER?>index.php?route=extension/shipping/econt_delivery/beforeCartSaveShipping',
-                                        {customerInfo: shippingInfo, payment_method: $('input:radio[name=payment_method]:checked').val()}, function(response){
-                                            var $tmp = $('<div></div>');
-                                            $tmp.html(response);
-                                            $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive').empty();
-                                            $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive').html($('div.table-responsive', $tmp).html())
-                                        }, 'text');
-                                <?php } ?>
-                            }
-                        }
-                    });
-                })(jQuery);
-            </script>
-
-            <?php
-            if ($this->oneStepCheckoutModuleEnabled) {
-                ?>
-                <style>
-                    #econt_iframe_wrapper {
-                        width: 100vw;
-                        height: 100vh;
-                        background: rgba(0,0,0,.5);
-                        display: none;
-                        position: fixed;
-                        z-index: 3;
-                        top: 0;
-                        left: 0;
-                    }
-
-                    #econt_iframe_inner {
-                        position: absolute;
-                        background: #ffffff;
-                        width: 100vw;
-                        height: 100%;
-                        padding: 50px 10px;
-                    }
-
-                    #econtDeliverFrame {
-                        position: relative;
-                        width: 100%;
-                        height: 100%;
-                        border: none;
-                        margin-top: 0;
-                    }
-                    
-                    .close-econt-modal {
-                        float: right;
-                        font-size: 24px;
-                        cursor: pointer;
-                        position: relative;
-                        bottom: 15px;
-                    }
-
-                    .background-muted {
-                        overflow-y: hidden;
-                        z-index: -1;
-                    }
-
-                    @media screen and (min-width: 650px) {
-                        #econt_iframe_inner {
-                            top: 10%;
-                            left: 50%;
-                            transform: translateX(-50%);
-                            width: 80vw;
-                            height: 80%;
-                            padding: 25px;
-                            max-width: 800px;
-                        }
-
-                        #econtDeliverFrame {
-                            margin-top: -15px;
-                            max-height: 85vh;
-                        }
-                    }
-                </style>
-                <?php
-            } else { ?>
-                <style>
-                    #econtDeliverFrame {
-                        width: 100%;
-                        height: 750px;
-                        border: 0;
-                    }
-                </style>
-            <?php }
-            ?>
-            <?php
+            /**
+             * Journal3 specific change. If no JOURNAL3_VERSION is defined, we assume that the theme is not installed.
+             * If the theme is installed and the opencart default checkout is active, we output the JS/CSS for Econt Delivery.
+             * For Journal3 one page checkout we use event
+             */
+            // if(!$this->isJournalOnePageCheckout()){
+            //     $this->outputEcontDeliveryCheckoutScript();
+            // }
         }
 
         return array(
@@ -479,6 +133,106 @@ class ModelExtensionShippingEcontDelivery extends Model {
         );
     }
 
+    /**
+     * Outputs the Econt Delivery checkout JavaScript and CSS required for the shipping method.
+     * The method dynamically modifies and includes necessary client-side scripts for processing
+     * Econt Delivery within the checkout, including handling various configurations and user interactions.
+     *
+     * @param bool $returnHtml Optional. If true, the method will return the generated HTML script content as a string,
+     *                         rather than directly outputting it. Default is false.
+     * @return void|string Returns void when $returnHtml is false (standard behavior).
+     *                     Returns a string containing the generated HTML script content if $returnHtml is true.
+     */
+    public function outputEcontDeliveryCheckoutScript() {
+
+        // This method outputs the checkout JS/CSS for Econt Delivery without requiring parameters
+        $this->load->model('setting/setting');
+        $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+
+        // Setup modes based on settings and request, same as in getQuote
+        $this->econtDeliveryOneStepCheckoutEnabled = isset($settings['shipping_econt_delivery_checkout_mode']) && $settings['shipping_econt_delivery_checkout_mode'] == 'onestep';
+
+        if ($this->econtDeliveryOneStepCheckoutEnabled && isset($this->session->data['shipping_address']['firstname']) && $this->session->data['shipping_address']['firstname'] == '8a9ggua0sjm$Fn') {
+            $this->session->data['shipping_address']['company']     = '';
+            $this->session->data['shipping_address']['firstname']   = '';
+            $this->session->data['shipping_address']['lastname']    = '';
+            $this->session->data['shipping_address']['iso_code_3']  = '';
+            $this->session->data['shipping_address']['city']        = '';
+            $this->session->data['shipping_address']['postcode']    = '';
+            $this->session->data['shipping_address']['address_1']   = '';
+            $this->session->data['shipping_address']['address_2']   = '';
+        }
+        $this->oneStepCheckoutModuleEnabled = isset($this->request->request['route']) && $this->request->request['route'] == 'extension/quickcheckout/shipping_method';
+
+        $this->load->language('extension/shipping/econt_delivery');
+
+        // if ( isset($this->request->request['route']) 
+        //     && ($this->request->request['route'] == 'checkout/checkout' || $this->request->request['route'] == 'checkout/shipping_method' || $this->oneStepCheckoutModuleEnabled || $this->econtDeliveryOneStepCheckoutEnabled)
+        // ) {
+            
+            $customer = $this->registry->get('customer');
+            if ($customer && $customer->getEmail()) {
+                $email = $customer->getEmail();
+                $phone = $customer->getTelephone();
+            } else {
+                $email = $this->session->data['shipping_address']['email'] ?? ($this->session->data['guest']['email'] ?? '');
+                $phone = $this->session->data['shipping_address']['telephone'] ?? ($this->session->data['guest']['telephone'] ?? '');
+            }
+
+            $keys = explode('@', $this->config->get('shipping_econt_delivery_private_key'));
+
+            @$frameParams = array(
+                'id_shop' => intval(@reset($keys)),
+                'order_weight' => $this->cart->getWeight(),
+                'order_total' => $this->getOrderTotal(),
+                'order_currency' => $this->session->data['currency'],
+                'customer_company' => $this->session->data['shipping_address']['company'],
+                'customer_name' => "{$this->session->data['shipping_address']['firstname']} {$this->session->data['shipping_address']['lastname']}",
+                'customer_phone' => $phone,
+                'customer_email' => $email,
+                'customer_country' => $this->session->data['shipping_address']['iso_code_3'],
+                'customer_city_name' => $this->session->data['shipping_address']['city'],
+                'customer_post_code' => $this->session->data['shipping_address']['postcode'],
+                'customer_address' => $this->session->data['shipping_address']['address_1'] . ' ' . $this->session->data['shipping_address']['address_2'],
+            );
+
+            $officeCode = trim($this->session->data['econt_delivery']['customer_info']['office_code'] ?? '');
+
+            if (!empty($officeCode)) {
+                $frameParams['customer_office_code'] = $officeCode;
+            }
+
+            $zip = trim($this->session->data['econt_delivery']['customer_info']['zip'] ?? '');
+
+            if (!empty($zip)) {
+                $frameParams['customer_zip'] = $zip;
+            }
+
+            if ($this->econtDeliveryOneStepCheckoutEnabled) {
+                $frameParams['module'] = 'onecheckout';
+            }
+
+            $deliveryBaseURL = $settings['shipping_econt_delivery_system_url'];
+            $frameURL = $deliveryBaseURL . '/customer_info.php?' . http_build_query($frameParams, '', '&');
+            $deliveryMethodTxt = $this->language->get('text_delivery_method_description');
+            $deliveryMethodPriceCD = $this->language->get('text_delivery_method_description_cd');
+
+            $data['is_logged'] = $this->customer->isLogged();
+            $data['is_journal_theme'] = $this->config->get('config_theme') === 'journal3';
+            $data['isJournalOnePageCheckout'] = $this->isJournalOnePageCheckout();
+            $data['deliveryBaseURL'] = $deliveryBaseURL;
+            $data['frameURL'] = $frameURL;
+            $data['deliveryMethodTxt'] = $deliveryMethodTxt;
+            $data['deliveryMethodPriceCD'] = $deliveryMethodPriceCD;
+            $data['econtDeliveryOneStepCheckoutEnabled'] = $this->econtDeliveryOneStepCheckoutEnabled;
+            $data['oneStepCheckoutModuleEnabled'] = $this->oneStepCheckoutModuleEnabled;
+
+            $html = $this->load->view('extension/shipping/econt_delivery_checkout_script', $data);
+
+            return $html;
+        // }
+    }
+
     public function getOrderTotal() {
         $products = $this->cart->getProducts();
         foreach ($products as $product) {
@@ -495,80 +249,111 @@ class ModelExtensionShippingEcontDelivery extends Model {
                 );
             }
         }
+
         $this->load->model('setting/extension');
         $totals = array();
         $taxes = $this->cart->getTaxes();
+
         $total = 0;
+
         $total_data = array(
             'totals' => &$totals,
             'taxes'  => &$taxes,
             'total'  => &$total
         );
+
         $sort_order = array();
         $results = $this->model_setting_extension->getExtensions('total');
-        foreach ($results as $key => $value) $sort_order[$key] = $this->config->get('total_' . $value['code'] . '_sort_order');
+
+        foreach ($results as $key => $value) {
+            $sort_order[$key] = $this->config->get('total_' . $value['code'] . '_sort_order');
+        }
+
         array_multisort($sort_order, SORT_ASC, $results);
+
         foreach ($results as $result) {
             if ($this->config->get('total_' . $result['code'] . '_status')) {
                 $this->load->model('extension/total/' . $result['code']);
                 $this->{'model_extension_total_' . $result['code']}->getTotal($total_data);
             }
         }
+
         $sort_order = array();
-        foreach ($totals as $key => $value) $sort_order[$key] = $value['sort_order'];
+
+        foreach ($totals as $key => $value) {
+            $sort_order[$key] = $value['sort_order'];
+        }
+
         array_multisort($sort_order, SORT_ASC, $totals);
 
         return array_reduce($totals, function($total, $currentRow) {
-            if (!in_array($currentRow['code'], array('shipping', 'total'))) $total += $currentRow['value'];
+
+            if (!in_array($currentRow['code'], array('shipping', 'total'))) {
+                $total += $currentRow['value'];
+            }
             return $total;
         }, 0);
     }
 
-    public function prepareOrder() {
-        $orderId = @intval($this->request->get['order_id']);
-        if ($orderId <= 0) {
-            if ($this->request->get['route'] === 'api/order/add') {
-                //$orderId = intval(reset($data));
-                if ($orderId <= 0) return null;
+    public function prepareOrder($orderId = 0) {
 
-                if (!empty($this->session->data['econt_delivery']['customer_info'])) $this->db->query(sprintf("
-                    INSERT INTO `%s`.`%secont_delivery_customer_info`
-                    SET id_order = {$orderId},
-                        customer_info = '%s'
-                    ON DUPLICATE KEY UPDATE
-                        customer_info = VALUES(customer_info)
-                ",
-                    DB_DATABASE,
-                    DB_PREFIX,
-                    json_encode($this->session->data['econt_delivery']['customer_info'])
-                ));
+        $orderId = @intval($this->request->get['order_id'] ?? $orderId);
+
+        if ($orderId <= 0) {
+        
+            if ($this->request->get['route'] === 'api/order/add') {
+        
+                //$orderId = intval(reset($data));
+
+        
+                if ($orderId <= 0) {
+                    return null;
+                }
+
+                if (!empty($this->session->data['econt_delivery']['customer_info'])) {
+                    $this->db->query("
+                            INSERT INTO ".DB_PREFIX."econt_delivery_customer_info
+                            SET id_order = {$orderId},
+                                customer_info = '".json_encode($this->session->data['econt_delivery']['customer_info'])."'
+                            ON DUPLICATE KEY UPDATE customer_info = VALUES(customer_info)
+                        ");
+                }
             } else {
-                if (!($orderId = intval($this->session->data['order_id']))) return null;
+                if (!($orderId = intval($this->session->data['order_id']))) {
+                    return null;
+                }
             }
         }
 
-        if(is_null($this->model_checkout_order)) $this->load->model('checkout/order');
+        if(is_null($this->model_checkout_order)) {
+            $this->load->model('checkout/order');
+        }
+        
         $orderData = $this->model_checkout_order->getOrder($orderId);
-        if (empty($orderData) || $orderData['shipping_code'] !== 'econt_delivery.econt_delivery') return null;
+        
+        if (empty($orderData) || $orderData['shipping_code'] !== 'econt_delivery.econt_delivery'){
+             return null;
+        }
 
         $this->load->model('extension/shipping/econt_delivery');
-        $customerInfo = isset($this->session->data['econt_delivery']) ? $this->session->data['econt_delivery']['customer_info'] : [];
+
+        $customerInfo = isset($this->session->data['econt_delivery']) 
+            ? $this->session->data['econt_delivery']['customer_info'] 
+            : [];
         $paymentToken = '';
+        
         if (empty($customerInfo)) {
-            $customerInfo = $this->db->query(sprintf("
+            $customerInfo = $this->db->query("
                 SELECT
                     ci.customer_info AS customerInfo,
                     ci.payment_token AS paymentToken
-                FROM `%s`.`%secont_delivery_customer_info` AS ci
-                WHERE TRUE
-                    AND ci.id_order = {$orderId}
+                FROM ".DB_PREFIX."econt_delivery_customer_info AS ci
+                WHERE ci.id_order = {$orderId}
                 LIMIT 1
-            ",
-                DB_DATABASE,
-                DB_PREFIX
-            ));
-            $paymentToken = trim($customerInfo->row['paymentToken']);
-            $customerInfo = json_decode($customerInfo->row['customerInfo'], true);
+            ");
+
+            $paymentToken = @trim($customerInfo->row['paymentToken']);
+            $customerInfo = json_decode($customerInfo->row['customerInfo'] ?? '{}', true);
         }
         if (!$customerInfo || empty($customerInfo['id'])) return null;
 
@@ -650,7 +435,6 @@ class ModelExtensionShippingEcontDelivery extends Model {
 
         return $aOrderObject;
     }
-
     public function calculateShippingPrice() {
         if (!array_key_exists('econt_delivery', $this->session->data)) {
             return;
@@ -661,7 +445,10 @@ class ModelExtensionShippingEcontDelivery extends Model {
         }
 
         $aData = $this->session->data['econt_delivery']['customer_info'];
-        if(is_null($aData)) return;
+
+        if(is_null($aData)) {
+            return 0;
+        }
         
         $payment_method_price_map = [
             'cod' => array_key_exists('shipping_price_cod', $aData) ? $aData['shipping_price_cod'] : 0,
@@ -677,4 +464,13 @@ class ModelExtensionShippingEcontDelivery extends Model {
         }
     }
 
+    public function isJournalOnePageCheckout()
+    {
+        return !defined('JOURNAL3_VERSION')
+            || (
+                (class_exists(Journal3::class) && Journal3::getInstance() && Journal3::getInstance()->settings->get('activeCheckout') === 'journal')
+                ||
+                ( !is_null($this->journal3 ?? null) && $this->journal3->get('activeCheckout') === 'journal')
+            );
+    }
 }
