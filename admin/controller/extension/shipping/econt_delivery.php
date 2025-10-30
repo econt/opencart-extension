@@ -507,8 +507,9 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     {
         $this->load->model('setting/setting');
         $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+        $shipping_econt_delivery_status = $settings['shipping_econt_delivery_status'] ?? 0;
 
-        if($settings['shipping_econt_delivery_status'] == 1){
+        if($shipping_econt_delivery_status == 1){
 
             if(!isset($this->session->data['latest_github_release_version']) || empty($this->session->data['latest_github_release_version'])){
                 $this->setLatestGithubReleaseVersion();
