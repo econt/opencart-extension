@@ -29,7 +29,9 @@
             panelBody.prepend(toggleButton);
 
             var productTable = $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive');
-            productTable[0].style.marginTop = '60px';
+            if(productTable[0]) {
+                productTable[0].style.marginTop = '60px';
+            }
 
             $('input:radio[name=payment_method]').change(
                 function(){
@@ -454,6 +456,9 @@
             }
             .quick-checkout-wrapper .shipping-payment .section-body iframe{
                 padding: 1rem;
+            }
+            .quick-checkout-wrapper .checkout-section {
+                display: block;
             }
         {% endif %}
     </style>
