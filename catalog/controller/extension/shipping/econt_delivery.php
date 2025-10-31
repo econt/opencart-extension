@@ -469,7 +469,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 
             $orderId = @intval($this->session->data['order_id']);
 
-            if (empty($this->session->data['econt_delivery']['customer_info']) && $orderId <= 0) {
+            if (empty($this->session->data['econt_delivery']['customer_info']) || $orderId <= 0) {
                 return;
             }
 
