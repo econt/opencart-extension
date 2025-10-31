@@ -97,6 +97,9 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/model/checkout/order/addOrderHistory/after', 'extension/shipping/econt_delivery/afterModelCheckoutOrderAddHistory');
         $this->model_setting_event->addEvent('econt_delivery', 'admin/model/sale/order/getOrder/after', 'extension/shipping/econt_delivery/afterAdminModelSaleOrderGetOrder');
 
+        // Admin check version and show notification
+        $this->model_setting_event->addEvent('econt_delivery', 'admin/view/common/header/after', 'extension/shipping/econt_delivery/adminCheckVersionAndShowNotification');
+
         // Journal3
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/journal3/checkout/save/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/journal3/checkout/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
@@ -503,4 +506,51 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         }
     }
 
+    public function adminCheckVersionAndShowNotification($route, &$data, &$output)
+    {
+        $this->load->model('setting/setting');
+        $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+        $shipping_econt_delivery_status = $settings['shipping_econt_delivery_status'] ?? 0;
+
+        if($shipping_econt_delivery_status == 1){
+
+            if(!isset($this->session->data['latest_github_release_version']) || empty($this->session->data['latest_github_release_version'])){
+                $this->setLatestGithubReleaseVersion();
+            }
+
+            $latest_github_release_version = $this->session->data['latest_github_release_version'];
+            $query = $this->db->query("SELECT * FROM " . DB_PREFIX ."modification WHERE code like 'econt_delivery_and_payment%' ORDER BY date_added DESC LIMIT 1")->row;
+            $current_econt_delivery_version = $query['version'] ?? null;
+
+
+
+            if($current_econt_delivery_version && $latest_github_release_version && version_compare($latest_github_release_version, $current_econt_delivery_version, '>')){
+
+                $data['latest_github_release_version'] = $latest_github_release_version;
+                $data['current_econt_delivery_version'] = $current_econt_delivery_version;
+
+                $newVersion = $this->load->view('extension/shipping/econt_delivery_version_notification', $data);
+
+                $output = str_replace('</header>', $newVersion.'</header>', $output);
+
+            }
+        }
+    }
+
+    public function setLatestGithubReleaseVersion()
+    {
+        $url = "https://api.github.com/repos/econt/opencart-extension/releases";
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36'); // GitHub API requires a User-Agent header
+
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        $data = json_decode($response, true);
+
+        $latest_github_release_version = preg_replace('/[^0-9.]/', '', $data[0]['tag_name']);
+        $this->session->data['latest_github_release_version'] = $latest_github_release_version;
+    }
 }
