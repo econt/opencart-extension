@@ -101,6 +101,15 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/journal3/checkout/save/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/journal3/checkout/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
         $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/journal3/checkout/checkout/after', 'extension/shipping/econt_delivery/loadEcontScripts');
+        // Journal3 quick checkout
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/journal3/checkout/checkout/after', 'extension/shipping/econt_delivery/configureEcontOneStepCheckoutForJournal3');
+
+        // Maza theme
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/extension/maza/checkout/after', 'extension/shipping/econt_delivery/loadEcontScripts');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/extension/maza/checkout/after', 'extension/shipping/econt_delivery/configureEcontOneStepCheckoutForJournal3');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/maza/checkout/save/before', 'extension/shipping/econt_delivery/beforeCartSavePayment');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/controller/extension/maza/checkout/save/before', 'extension/shipping/econt_delivery/beforeCartSaveShipping');
+        $this->model_setting_event->addEvent('econt_delivery', 'catalog/view/extension/maza/checkout/shipping_method/after', 'extension/shipping/econt_delivery/loadEcontScripts');
     }
 
     public function uninstall() {

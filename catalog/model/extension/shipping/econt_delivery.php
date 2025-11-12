@@ -466,7 +466,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
 
     public function isJournalOnePageCheckout()
     {
-        return !defined('JOURNAL3_VERSION')
+        return defined('JOURNAL3_VERSION')
             || (
                 (class_exists(Journal3::class) && Journal3::getInstance() && Journal3::getInstance()->settings->get('activeCheckout') === 'journal')
                 ||
