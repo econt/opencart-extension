@@ -204,12 +204,24 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 				            $('#collapse-checkout-confirm').parent().find('.panel-heading .panel-title').html('<a href=\"#collapse-checkout-confirm\" data-toggle=\"collapse\" data-parent=\"#accordion\" class=\"accordion-toggle\">{{ text_checkout_confirm }} <i class=\"fa fa-caret-down\"></i></a>');
 				            $('a[href=\'#collapse-checkout-confirm\']').trigger('click');
 				            
-				            $('#collapse-checkout-option').parent()[0].style = 'display: none';
-				            $('#collapse-payment-address').parent()[0].style = 'display: none';
-				            $('#collapse-shipping-address').parent()[0].style = 'display: none';
-				            $('#collapse-shipping-method').parent()[0].style = 'display: none';
-				            $('#collapse-payment-method').parent()[0].style = 'display: none';
-				            $('#collapse-checkout-confirm').parent().find('.panel-heading')[0].style = 'display: none';
+				            if($(document).find('#collapse-checkout-option').length){
+				                $('#collapse-checkout-option').parent()[0].style = 'display: none';
+				            }
+				            if($(document).find('#collapse-payment-address').length){
+				                $('#collapse-payment-address').parent()[0].style = 'display: none';
+				            }
+				            if($(document).find('#collapse-shipping-address').length){
+				                $('#collapse-shipping-address').parent()[0].style = 'display: none';
+				            }
+				            if($(document).find('#collapse-shipping-method').length){
+				                $('#collapse-shipping-method').parent()[0].style = 'display: none';
+				            }
+				            if($(document).find('#collapse-payment-method').length){
+				                $('#collapse-payment-method').parent()[0].style = 'display: none';
+				            }
+				            if($(document).find('#collapse-checkout-confirm').length){
+				                $('#collapse-checkout-confirm').parent().find('.panel-heading')[0].style = 'display: none';
+				            }
 				        },
 						error: function(xhr, ajaxOptions, thrownError) {
 							alert(thrownError + \"\\r\\n\" + xhr.statusText + \"\\r\\n\" + xhr.responseText);
@@ -223,13 +235,28 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 			");
 
             $html = $this->replaceBetween('// Checkout', '// Login', $html, "
-				$(document).delegate('#button-@account', 'click', function() {
+				$(document).delegate('#button-account', 'click', function() {
 					$ajaxShippingMethod
 				});
 			");
         }
 
         return $html;
+    }
+
+    public function configureEcontOneStepCheckoutForJournal3($route, &$data, &$output)
+    {
+
+        $this->load->model('setting/setting');
+        $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+
+        if ($settings['shipping_econt_delivery_checkout_mode'] == 'onestep') {
+            $this->load->language('checkout/checkout');
+            $this->config->set('config_theme', 'default');
+            $this->config->set('theme_default_directory', 'default');
+            // Re-render with default theme
+            $output = $this->load->view('checkout/checkout', $data);
+        }
     }
 
     public function afterViewCheckoutLogin($route)
@@ -454,7 +481,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 
             $orderId = @intval($this->session->data['order_id']);
 
-            if (empty($this->session->data['econt_delivery']['customer_info']) && $orderId <= 0) {
+            if (empty($this->session->data['econt_delivery']['customer_info']) || $orderId <= 0) {
                 return;
             }
 
