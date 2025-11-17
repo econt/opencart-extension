@@ -364,7 +364,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller
                 $this->session->data['payment_method']['code'] = $this->request->request['payment_method'];
                 $this->session->data['payment_method']['title'] = $this->session->data['payment_methods'][$this->request->request['payment_method']]['title'];
                 $this->session->data['econt_delivery']['customer_info'] = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']), true);
-                $this->load->controller('checkout/confirm');
+                $this->afterCheckoutConfirm();
             }
         }
 
