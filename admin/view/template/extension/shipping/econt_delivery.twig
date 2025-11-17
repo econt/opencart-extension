@@ -59,7 +59,7 @@
                     <input type="hidden" name="action" value="save_settings" />
 
                     <!-- system urls -->
-                    <div class="form-group">
+                    <div class="form-group required">
                         <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-status">{{ text_system_urls }}</label>
                         <div class="col-sm-10">
                             <select name="shipping_econt_delivery_system_url" id="input-shipping-econt-delivery-url" class="form-control">
@@ -71,7 +71,7 @@
                     </div>
 
                     <!-- private key -->
-                    <div class="form-group">
+                    <div class="form-group required">
                         <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-private-key">{{ text_private_key }}</label>
                         <div class="col-sm-10">
                             <input type="password" name="shipping_econt_delivery_private_key" value="{{ settings['shipping_econt_delivery_private_key'] }}" placeholder="{{ text_private_key }}" id="input-shipping-econt-delivery-private-key" class="form-control" />
@@ -79,7 +79,7 @@
                     </div>
 
                     <!-- geo zone -->
-                    <div class="form-group">
+                    <div class="form-group required">
                         <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-geo-zone-id">{{ text_geo_zone }}</label>
                         <div class="col-sm-10">
                             <select name="shipping_econt_delivery_geo_zone_id" id="input-shipping-econt-delivery-geo-zone-id" class="form-control">
@@ -92,7 +92,7 @@
                     </div>
 
                     <!-- checkout mode -->
-                    <div class="form-group">
+                    <div class="form-group required">
                         <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-checkout-mode">{{ text_checkout_mode }}</label>
                         <div class="col-sm-10">
                             <select name="shipping_econt_delivery_checkout_mode" id="input-shipping-econt-delivery-checkout-mode" class="form-control">
@@ -103,13 +103,35 @@
                     </div>
 
                     <!--status -->
-                    <div class="form-group">
+                    <div class="form-group required">
                         <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-status">{{ text_status }}</label>
                         <div class="col-sm-10">
                             <select name="shipping_econt_delivery_status" id="input-shipping-econt-delivery-status" class="form-control">
                                 <option value="1" {{ (settings['shipping_econt_delivery_status'] == 1) ? 'selected="selected"' : '' }}>{{ text_status_enabled }}</option>
                                 <option value="0" {{ (settings['shipping_econt_delivery_status'] != 1) ? 'selected="selected"' : '' }}>{{ text_status_disabled }}</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <!-- width -->
+                    <div class="form-group required">
+                        <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-width">
+                            {{ text_width }}
+                            <span data-toggle="tooltip" title="{{ text_width_tooltip }}" data-placement="top"></span>
+                        </label>
+                        <div class="col-sm-10">
+                            <input type="text" name="shipping_econt_delivery_width" value="{{ settings.shipping_econt_delivery_width }}" placeholder="{{ text_width_placeholder }}" id="input-shipping-econt-delivery-width" class="form-control" required/>
+                        </div>
+                    </div>
+
+                    <!-- height -->
+                    <div class="form-group required">
+                        <label class="col-sm-2 control-label" for="input-shipping-econt-delivery-height">
+                            {{ text_height }}
+                            <span data-toggle="tooltip" title="{{ text_height_tooltip }}" data-placement="top"></span>
+                        </label>
+                        <div class="col-sm-10">
+                            <input type="text" name="shipping_econt_delivery_height" value="{{ settings.shipping_econt_delivery_height }}" placeholder="{{ text_height_placeholder }}" id="input-shipping-econt-delivery-height" class="form-control" required/>
                         </div>
                     </div>
 

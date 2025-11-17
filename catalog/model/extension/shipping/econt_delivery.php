@@ -226,6 +226,8 @@ class ModelExtensionShippingEcontDelivery extends Model {
             $data['deliveryMethodPriceCD'] = $deliveryMethodPriceCD;
             $data['econtDeliveryOneStepCheckoutEnabled'] = $this->econtDeliveryOneStepCheckoutEnabled;
             $data['oneStepCheckoutModuleEnabled'] = $this->oneStepCheckoutModuleEnabled;
+            $data['iframeWidth'] = $settings['shipping_econt_delivery_width'] ?? '100%';
+            $data['iframeHeight'] = $settings['shipping_econt_delivery_height'] ?? '750px';
 
             $html = $this->load->view('extension/shipping/econt_delivery_checkout_script', $data);
 

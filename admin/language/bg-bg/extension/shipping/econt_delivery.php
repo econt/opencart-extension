@@ -26,6 +26,12 @@ $_['text_invalid_shipping_method'] = 'Невалидно ID на поръчка'
 $_['text_checkout_mode'] = 'Метод на поръчка';
 $_['text_checkout_mode_normal'] = 'Нормален';
 $_['text_checkout_mode_onestep'] = 'В една стъпка';
+$_['text_width'] = 'Iframe Ширина';
+$_['text_width_placeholder'] = 'Ширина';
+$_['text_height'] = 'Iframe Височина';
+$_['text_height_placeholder'] = 'Височина';
+$_['text_width_tooltip'] = 'Можете да използвате CSS стойности като: 750px, 60%, 100vh, calc(100% - 20px)';
+$_['text_height_tooltip'] = 'Можете да използвате CSS стойности като: 750px, 60%, 100vh, calc(100% - 20px)';
 
 $_['text_order_list_econt_shipping_column_label'] = 'Товарителница Еконт';
 $_['text_order_list_econt_shipping_column_prepare_loading'] = 'Изпрати';

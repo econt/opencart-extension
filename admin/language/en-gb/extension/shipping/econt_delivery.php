@@ -26,6 +26,12 @@ $_['text_invalid_shipping_method'] = 'Invalid Order ID';
 $_['text_checkout_mode'] = 'Checkout mode';
 $_['text_checkout_mode_normal'] = 'Normal';
 $_['text_checkout_mode_onestep'] = 'One step';
+$_['text_width'] = 'Iframe Width';
+$_['text_width_placeholder'] = 'Width';
+$_['text_height'] = 'Iframe Height';
+$_['text_height_placeholder'] = 'Height';
+$_['text_width_tooltip'] = 'You can use CSS values like: 750px, 60%, 100vh, calc(100% - 20px)';
+$_['text_height_tooltip'] = 'You can use CSS values like: 750px, 60%, 100vh, calc(100% - 20px)';
 
 $_['text_order_list_econt_shipping_column_label'] = 'Econt Waybill';
 $_['text_order_list_econt_shipping_column_prepare_loading'] = 'Prepare loading';

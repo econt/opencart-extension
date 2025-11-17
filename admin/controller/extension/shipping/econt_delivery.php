@@ -123,7 +123,18 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         if (isset($this->request->post['action']) && $this->request->post['action'] === 'save_settings' && $this->validate()) {
             $oldSettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+            
+            
+            // Iframe width and height defaults
+            if(empty($this->request->post['shipping_econt_delivery_width'])) {
+                $this->request->post['shipping_econt_delivery_width'] = '100%';
+            }
+            if(empty($this->request->post['shipping_econt_delivery_height'])) {
+                $this->request->post['shipping_econt_delivery_height'] = '750px';
+            }
+
             $this->model_setting_setting->editSetting('shipping_econt_delivery', $this->request->post);//
+
 
             if(
                 $this->request->post['shipping_econt_delivery_private_key'] != $oldSettings['shipping_econt_delivery_private_key'] ||
@@ -162,6 +173,16 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             )), true));
         }
 
+        $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+
+        // Covers already installed shops what do not have width and height set
+        if(empty($settings['shipping_econt_delivery_width'])) {
+            $settings['shipping_econt_delivery_width'] = '100%';
+        }
+        if(empty($settings['shipping_econt_delivery_height'])) {
+            $settings['shipping_econt_delivery_height'] = '750px';
+        }
+
         $this->document->setTitle($this->language->get('heading_title'));
         $this->response->setOutput($this->load->view('extension/shipping/econt_delivery', array(
             'header' => $this->load->controller('common/header'),
@@ -184,7 +205,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                 )), true)
             )),
             'geo_zones' => $this->model_localisation_geo_zone->getGeoZones(),
-            'settings' => $this->model_setting_setting->getSetting('shipping_econt_delivery'),
+            'settings' => $settings,
             'system_urls' => $this->systemUrls,
             'actions' => array(
                 'submit_url' => $this->url->link('extension/shipping/econt_delivery', http_build_query(array(
@@ -199,7 +220,9 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         )));
     }
     public function validate() {
-        if (!$this->user->hasPermission('modify', 'extension/shipping/econt_delivery')) $this->error['warning'] = $this->language->get('error_permission');
+        if (!$this->user->hasPermission('modify', 'extension/shipping/econt_delivery')) {
+            $this->error['warning'] = $this->language->get('error_permission');
+        }
 
         return empty($this->error);
     }

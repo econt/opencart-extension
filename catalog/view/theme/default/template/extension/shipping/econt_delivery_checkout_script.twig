@@ -18,7 +18,7 @@
             var $hiddenTextArea = $('<textarea style="display:none" name="econt_delivery_shipping_info"></textarea>');
             panelBody.prepend($hiddenTextArea);
 
-            var $frame = $('<iframe id="econtDeliverFrame" src="{{ frameURL }}"></iframe>');
+            var $frame = $('<iframe id="econtDeliverFrame" src="{{ frameURL }}" width="{{ iframeWidth }}" height="{{ iframeHeight }}"></iframe>');
             panelBody.prepend($frame);
 
             var toggleButton = $('<button id="toggleEcontDeliveryCustomerInfo" class="btn btn-primary" style="display: none;">{{ text_delivery_method_change_button }}</button>');
@@ -184,7 +184,7 @@
                     var url = getUrl(preparedFields);
 
                     if(!$frame) {
-                        $frame = $('<iframe id="econtDeliverFrame" src="' + url + '"></iframe>');
+                        $frame = $('<iframe id="econtDeliverFrame" src="' + url + '" width="{{ iframeWidth }}" height="{{ iframeHeight }}"></iframe>');
                         $("#econt_iframe_inner").append($frame);
                     }
 
@@ -214,7 +214,7 @@
 
             $econtRadio.click(function(){
                 if(!$frame) {
-                    $frame = $('<iframe id="econtDeliverFrame" src="{{ frameURL }}"></iframe>');
+                    $frame = $('<iframe id="econtDeliverFrame" src="{{ frameURL }}" width="{{ iframeWidth }}" height="{{ iframeHeight }}"></iframe>');
                     {% if oneStepCheckoutModuleEnabled %}
                         $("#econt_iframe_inner").append($frame);
                     {% else %}
@@ -434,8 +434,6 @@
 {% else %}
     <style>
         #econtDeliverFrame {
-            width: 100%;
-            height: 750px;
             border: 0;
         }
 
