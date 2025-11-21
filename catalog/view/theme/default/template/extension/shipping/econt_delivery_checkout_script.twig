@@ -40,7 +40,9 @@
                         type: 'POST',
                         async: false,  // This makes it synchronous
                         data: {
-                            payment_method: $('input:radio[name=payment_method]:checked').val()
+                            payment_method: $('input:radio[name=payment_method]:checked').val(),
+                            order_id: '{{ order_id }}',
+                            econt_delivery_shipping_info: $('textarea[name=econt_delivery_shipping_info]').val(),
                         },
                         dataType: 'text',
                         success: function(response) {
@@ -355,6 +357,11 @@
                                 $tmp.html(response);
                                 $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive').empty();
                                 $('div#collapse-checkout-confirm > div.panel-body > div.table-responsive').html($('div.table-responsive', $tmp).html());
+
+                                // Force maza theme to update the shipping method
+                                {% if is_maza_theme %}
+                                    $(document).find('input[name="postcode"]').trigger('change');
+                                {% endif %}
                             }
                         });
 
@@ -371,6 +378,15 @@
     })(jQuery);
 </script>
 
+
+<style>
+    #collapse-checkout-confirm {
+        display: block !important;
+    }
+    #maza-checkout label[for="input-shipping-method-econt_delivery.econt_delivery"]{
+        display: none;
+    }
+</style>
 
 {% if oneStepCheckoutModuleEnabled %}
     <style>

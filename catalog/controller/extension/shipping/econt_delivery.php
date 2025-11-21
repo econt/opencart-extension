@@ -355,6 +355,19 @@ class ControllerExtensionShippingEcontDelivery extends Controller
     public function onChangePaymentMethod()
     {
         $html = $this->load->controller('extension/payment/' . $this->request->request['payment_method'] . '/index');
+
+        // One step for maza theme
+        if($this->config->get('maza_status') == 1) {
+            $this->load->model('setting/setting');
+            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+            if ($settings['shipping_econt_delivery_checkout_mode'] == 'onestep') {
+                $this->session->data['payment_method']['code'] = $this->request->request['payment_method'];
+                $this->session->data['payment_method']['title'] = $this->session->data['payment_methods'][$this->request->request['payment_method']]['title'];
+                $this->session->data['econt_delivery']['customer_info'] = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']), true);
+                $this->afterCheckoutConfirm();
+            }
+        }
+
         $this->response->setOutput($this->fixCOD($html));
     }
 

@@ -219,6 +219,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
 
             $data['is_logged'] = $this->customer->isLogged();
             $data['is_journal_theme'] = $this->config->get('config_theme') === 'journal3';
+            $data['is_maza_theme'] = $this->config->get('maza_status');
             $data['isJournalOnePageCheckout'] = $this->isJournalOnePageCheckout();
             $data['deliveryBaseURL'] = $deliveryBaseURL;
             $data['frameURL'] = $frameURL;
@@ -468,7 +469,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
 
     public function isJournalOnePageCheckout()
     {
-        return !defined('JOURNAL3_VERSION')
+        return defined('JOURNAL3_VERSION')
             || (
                 (class_exists(Journal3::class) && Journal3::getInstance() && Journal3::getInstance()->settings->get('activeCheckout') === 'journal')
                 ||
