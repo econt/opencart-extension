@@ -340,7 +340,7 @@
                         $econtLabelText.text(labelTxt);
                     {% endif %}
 
-                    {% if econtDeliveryOneStepCheckoutEnabled or is_journal_theme %}
+                    {% if econtDeliveryOneStepCheckoutEnabled or is_journal_theme or is_maza_theme %}
 
                         $.ajax({
                             url: '{{ constant("HTTPS_SERVER") }}index.php?route=extension/shipping/econt_delivery/beforeCartSaveShipping',
