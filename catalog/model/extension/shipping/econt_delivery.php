@@ -460,7 +460,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
 
         $payment_method = $this->session->data['payment_method']['code'];
 
-        if (in_array($payment_method, $payment_method_price_map)) {
+        if (in_array($payment_method, $payment_method_price_map) || isset($payment_method_price_map[$payment_method])) {
 	        return round(@floatval($payment_method_price_map[$payment_method]), 2);
         } else {
 	        return round(@floatval($this->session->data['econt_delivery']['customer_info']['shipping_price']), 2);

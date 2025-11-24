@@ -299,6 +299,11 @@
                     if(shippingInfo.shipping_price != shippingInfo.shipping_price_cod) {
                         labelTxt += ' (+ ' + (shippingInfo.shipping_price_cod - shippingInfo.shipping_price).toFixed(2) + ' ' + shippingInfo.shipping_price_currency_sign + ' ' + {{ deliveryMethodPriceCD | json_encode }} + ')'
                     }
+                    
+                    {% if is_maza_theme %}
+                        labelTxt = shippingInfo.shipping_price_cod + ' ' + shippingInfo.shipping_price_currency_sign
+                    {% endif %}
+                    
                     $hiddenTextArea.val(JSON.stringify(e.originalEvent.data));
 
                     {% if oneStepCheckoutModuleEnabled %}
@@ -360,7 +365,7 @@
 
                                 // Force maza theme to update the shipping method
                                 {% if is_maza_theme %}
-                                    $(document).find('input[name="postcode"]').trigger('change');
+                                    updateMazaThemeShippingMethod();
                                 {% endif %}
                             }
                         });
@@ -376,6 +381,34 @@
             }
         });
     })(jQuery);
+
+    function updateMazaThemeShippingMethod() {
+        $.ajax({
+            url: 'index.php?route=extension/maza/checkout/address/update',
+            method: 'post',
+            data: $('#form-checkout').serialize(),
+            dataType: 'json',
+            async: false,
+            success: function(json) {
+                
+                    if (json['redirect']) {
+                        location = json['redirect'];
+                    }
+
+                    $('#checkout-total').replaceWith($(json.total));
+
+                },
+                beforeSend: function() {
+                    $('#button-save').prop('disabled', true).prepend('<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>');
+                },
+                complete: function() {
+                    $('#button-save').prop('disabled', false).children('.spinner-grow').remove();
+                },
+                error: function(xhr, ajaxOptions, thrownError) {
+                    alert(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
+                }
+            });
+    }
 </script>
 
 

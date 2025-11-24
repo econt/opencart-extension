@@ -499,14 +499,28 @@ class ControllerExtensionShippingEcontDelivery extends Controller
                     $this->db->escape(json_encode($this->session->data['econt_delivery']['customer_info']))
                 ));
 
+                $customer_name = $this->session->data['econt_delivery']['customer_info']['name'];
+                $last_space_position = strrpos($customer_name, ' ');
+
+                if ($last_space_position !== false) {
+                    $first_name = substr($customer_name, 0, $last_space_position);
+                    $last_name = substr($customer_name, $last_space_position + 1);
+                } else {
+                    // No space found - treat entire string as first name
+                    $first_name = $customer_name;
+                    $last_name = '';
+                }
+
                 $this->db->query("
 		            UPDATE `" . DB_PREFIX . "order`
-		            SET firstname = '" . $this->db->escape($this->session->data['econt_delivery']['customer_info']['name'] ?? '') . "',
+		            SET firstname = '" . $this->db->escape($first_name) . "',
+                    lastname = '" . $this->db->escape($last_name) . "',
 		            email = '" . $this->db->escape($this->session->data['econt_delivery']['customer_info']['email'] ?? '') . "',
 		            telephone = '" . $this->db->escape($this->session->data['econt_delivery']['customer_info']['phone'] ?? '') . "',
 		            comment = '" . $this->db->escape($this->session->data['comment'] ?? '') . "'
 		            WHERE order_id = $orderId
 		        ");
+                
             }
         }
     }
