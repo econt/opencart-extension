@@ -119,7 +119,7 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
 	        $order = $this->model_checkout_order->getOrder($orderID);
 			if(!empty($order)){
 				$order['comment'] = $this->db->escape($this->session->data['comment']);
-				$this->model_checkout_order->editOrder($orderID, $order);
+				$this->db->query("UPDATE " . DB_PREFIX . "order SET comment = '" . $this->db->escape($order['comment']) . "' WHERE order_id = '" . (int)$orderID . "'");
 			}
             $this->model_checkout_order->addOrderHistory($orderID, $econtPaymentSettings['payment_econt_payment_order_status_payment_processing_id'], 'EcontPay: Payment Processing / EcontPay: Очаква се плащане');
 
