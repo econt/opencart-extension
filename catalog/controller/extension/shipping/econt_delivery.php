@@ -36,6 +36,11 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 
         $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
         $data = $this->model_extension_shipping_econt_delivery->prepareOrder($orderId);
+
+        if(is_null($data)){
+            return json_decode(null);
+        }
+        
         $order = $data['order'];
         $orderData = $data['orderData'];
         $customerInfo = $data['customerInfo'];
@@ -47,7 +52,9 @@ class ControllerExtensionShippingEcontDelivery extends Controller
                 empty($order)
                 || empty($orderData)
                 || empty($customerInfo)
-            )) return json_decode(null, true);
+            )) {
+                return json_decode(null, true);
+            }
 
         $response = [];
         try {
@@ -388,7 +395,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller
             }
 
             $information_info = $this->model_catalog_information->getInformation($this->config->get('config_checkout_id'));
-            $errorMsg = sprintf($this->language->get('error_agree'), $information_info['title']);
+            $errorMsg = sprintf($this->language->get('error_agree'), $information_info['title'] ?? 'Terms & Conditions');
 
             $this->language->load('extension/shipping/econt_delivery');
             $errorShipping = $this->language->get('err_missing_customer_info');;
@@ -478,7 +485,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller
     {
 
 
-        if ($this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
+        if (isset($this->session->data['shipping_method']['code']) && $this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
 
             $orderId = @intval($this->session->data['order_id']);
 
