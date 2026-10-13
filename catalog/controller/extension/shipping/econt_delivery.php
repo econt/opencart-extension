@@ -431,11 +431,12 @@ class ControllerExtensionShippingEcontDelivery extends Controller
                 $customerInfo = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']), true);
             }
 
-            if (empty($customerInfo) && isset($this->request->request['customerInfo'])) {
+            if (!$this->isValidCustomerInfo($customerInfo) && isset($this->request->request['customerInfo'])) {
                 $customerInfo = $this->request->request['customerInfo'];
             }
 
-            $this->session->data['econt_delivery']['customer_info'] = $customerInfo;
+            // Data that is not a result from the Econt form (e.g. a foreign postMessage) must not reach the order
+            $this->session->data['econt_delivery']['customer_info'] = $this->isValidCustomerInfo($customerInfo) ? $customerInfo : null;
 
             if (!$this->session->data['econt_delivery']['customer_info']) {
                 $this->load->language('extension/shipping/econt_delivery');
@@ -489,7 +490,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 
             $orderId = @intval($this->session->data['order_id']);
 
-            if (empty($this->session->data['econt_delivery']['customer_info']) || $orderId <= 0) {
+            if (!$this->isValidCustomerInfo($this->session->data['econt_delivery']['customer_info'] ?? null) || $orderId <= 0) {
                 return;
             }
 
@@ -518,12 +519,16 @@ class ControllerExtensionShippingEcontDelivery extends Controller
                     $last_name = '';
                 }
 
+                // An empty e-mail breaks the order confirmation mail and leaves the order with status 0, so keep the one from the order
+                $email = trim($this->session->data['econt_delivery']['customer_info']['email'] ?? '');
+                $telephone = trim($this->session->data['econt_delivery']['customer_info']['phone'] ?? '');
+
                 $this->db->query("
 		            UPDATE `" . DB_PREFIX . "order`
 		            SET firstname = '" . $this->db->escape($first_name) . "',
                     lastname = '" . $this->db->escape($last_name) . "',
-		            email = '" . $this->db->escape($this->session->data['econt_delivery']['customer_info']['email'] ?? '') . "',
-		            telephone = '" . $this->db->escape($this->session->data['econt_delivery']['customer_info']['phone'] ?? '') . "',
+		            " . ($email !== '' ? "email = '" . $this->db->escape($email) . "'," : '') . "
+		            " . ($telephone !== '' ? "telephone = '" . $this->db->escape($telephone) . "'," : '') . "
 		            comment = '" . $this->db->escape($this->session->data['comment'] ?? '') . "'
 		            WHERE order_id = $orderId
 		        ");
@@ -709,6 +714,16 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 
         $this->response->addHeader('Content-Type: application/json');
         $this->response->setOutput(json_encode(@$this->session->data['econt_delivery']['customer_info']));
+    }
+
+    /**
+     * Checks that the data is a result from the Econt customer info form (name and phone are required there)
+     */
+    private function isValidCustomerInfo($customerInfo)
+    {
+        return is_array($customerInfo)
+            && !empty($customerInfo['name']) && is_string($customerInfo['name'])
+            && !empty($customerInfo['phone']) && is_string($customerInfo['phone']);
     }
 
     /**

@@ -269,6 +269,12 @@
         $(window).unbind('message.econtShipping');
         $(window).bind('message.econtShipping',function(e){
             if(e.originalEvent.origin.indexOf('{{ deliveryBaseURL }}') == 0) {
+                var messageData = e.originalEvent.data;
+                // The browser (e.g. Chrome or the Google app on iOS) may post its own messages from the Econt frame.
+                // Accept only an error or a result from the Econt customer info form.
+                if(!messageData || typeof messageData !== 'object') return;
+                if(!messageData.shipment_error && !(messageData.name && messageData.phone)) return;
+
                 if(e.originalEvent.data.shipment_error) {
                     alert(e.originalEvent.data.shipment_error)
                 } else {
