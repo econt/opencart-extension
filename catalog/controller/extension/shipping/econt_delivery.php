@@ -722,8 +722,8 @@ class ControllerExtensionShippingEcontDelivery extends Controller
     private function isValidCustomerInfo($customerInfo)
     {
         return is_array($customerInfo)
-            && !empty($customerInfo['name']) && is_string($customerInfo['name'])
-            && !empty($customerInfo['phone']) && is_string($customerInfo['phone']);
+            && is_string($customerInfo['name'] ?? null) && trim($customerInfo['name']) !== ''
+            && is_scalar($customerInfo['phone'] ?? null) && trim((string)$customerInfo['phone']) !== '';
     }
 
     /**
