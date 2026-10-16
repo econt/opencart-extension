@@ -1,0 +1,437 @@
+{# Econt Delivery Admin Order Form - Iframe Integration #}
+<script type="text/javascript">
+(function() {
+    'use strict';
+    
+    console.log('Econt admin order form script initializing...');
+    
+    var userToken = '{{ user_token|escape('js') }}';
+    var deliveryBaseUrl = '';
+    var modalOpenInProgress = false;
+    var addressSelected = false;
+    var textSelectAddress = '{{ text_select_address|escape('js') }}';
+    var textChooseAddress = 'Loading address selection...';
+    
+    // Create and inject modal
+    var createModal = function() {
+        if (document.getElementById('econt-address-selection-modal')) {
+            console.log('Modal already exists');
+            return;
+        }
+        
+        console.log('Creating Econt address selection modal');
+        
+        var modalHtml = `
+            <div id="econt-address-selection-modal" class="modal fade" role="dialog">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal">&times;</button>
+                            <h4 class="modal-title">` + textSelectAddress + `</h4>
+                        </div>
+                        <div class="modal-body">
+                            <div id="econt-address-loader" style="text-align: center; padding: 40px;">
+                                <i class="fa fa-spinner fa-spin fa-3x"></i>
+                                <p style="margin-top: 15px;">` + textChooseAddress + `</p>
+                            </div>
+                            <iframe id="econt-address-iframe" 
+                                    src="about:blank" 
+                                    style="display: none; border: 0; width: 100%; height: 600px;">
+                            </iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Initialize modal
+        $('#econt-address-selection-modal').modal({
+            show: false,
+            backdrop: 'static'
+        });
+
+        $(document).on('click', 'button.close', function() {
+            $('#econt-address-selection-modal').modal('hide');
+        });
+        
+        console.log('Modal created successfully');
+    };
+    
+    // Open modal and load iframe
+    var openEcontAddressModal = function(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        if (modalOpenInProgress) {
+            console.log('Modal open already in progress');
+            return;
+        }
+        
+        console.log('Opening Econt address selection modal');
+        modalOpenInProgress = true;
+        
+        var $modal = $('#econt-address-selection-modal');
+        var $iframe = $('#econt-address-iframe');
+        var $loader = $('#econt-address-loader');
+        
+        // Show modal
+        $modal.modal('show');
+        
+        // Show loader
+        $loader.show();
+        $iframe.hide();
+        
+        console.log('Calculating order weight...');
+        
+        // Calculate weight first, then gather order data and load iframe
+        calculateOrderWeight(function(calculatedWeight) {
+            console.log('Weight calculated:', calculatedWeight, 'kg');
+            
+            // Gather order data from form
+            var orderData = {
+                order_weight: calculatedWeight,
+                order_total: calculateOrderTotal(),
+                order_currency: $('#input-currency').val() || 'EUR',
+                shipping_firstname: $('input[name="shipping_firstname"]').val() || '',
+                shipping_lastname: $('input[name="shipping_lastname"]').val() || '',
+                shipping_company: $('input[name="shipping_company"]').val() || '',
+                shipping_address_1: $('input[name="shipping_address_1"]').val() || '',
+                shipping_address_2: $('input[name="shipping_address_2"]').val() || '',
+                shipping_city: $('input[name="shipping_city"]').val() || '',
+                shipping_postcode: $('input[name="shipping_postcode"]').val() || '',
+                shipping_country_code: $('select[name="shipping_country_id"] option:selected').data('iso-code-3') || 'BGR',
+                customer_email: $('input[name="email"]').val() || '',
+                customer_telephone: $('input[name="telephone"]').val() || '',
+                payment_method: $('#input-payment-method-code').val() || ''
+            };
+            
+            console.log('Fetching iframe parameters with order data:', orderData);
+            
+            // Get iframe URL
+            $.ajax({
+                url: 'index.php?route=extension/econt_delivery_oc4/shipping/econt_delivery.getAdminCustomerInfoParams&user_token=' + userToken,
+                type: 'POST',
+                data: orderData,
+                dataType: 'json',
+                success: function(json) {
+                    console.log('Iframe parameters received:', json);
+                    modalOpenInProgress = false;
+                    
+                    if (json.error) {
+                        alert(json.error);
+                        $modal.modal('hide');
+                        return;
+                    }
+                    
+                    if (json.success && json.iframe_url) {
+                        deliveryBaseUrl = json.delivery_base_url;
+                        
+                        // Set iframe source
+                        $iframe.attr('src', json.iframe_url);
+                        
+                        // Show iframe when loaded
+                        $iframe.on('load', function() {
+                            $loader.hide();
+                            $iframe.show();
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    modalOpenInProgress = false;
+                    console.error('Error fetching iframe parameters:', error);
+                    alert('Failed to load address selection. Please try again.');
+                    $modal.modal('hide');
+                }
+            });
+        });
+    };
+    
+    // Handle postMessage from iframe
+    var handleIframeMessage = function(event) {
+        if (!deliveryBaseUrl || event.origin.indexOf(deliveryBaseUrl) !== 0) {
+            return;
+        }
+        
+        var data = event.data;
+        if (!data) {
+            return;
+        }
+        
+        // Handle error from iframe
+        if (data.shipment_error) {
+            alert(data.shipment_error);
+            return;
+        }
+        
+        console.log('Received customer info from iframe:', data);
+        
+        // Save customer info
+        saveCustomerInfo(data);
+    };
+    
+    // Save customer info to session
+    var saveCustomerInfo = function(customerInfo) {
+        var $loader = $('#econt-address-loader');
+        var $iframe = $('#econt-address-iframe');
+        
+        // Show loader
+        $loader.show();
+        $iframe.hide();
+        
+        // Add payment method to data
+        customerInfo.payment_method = $('#input-payment-method-code').val() || '';
+        
+        // Add order ID for existing orders (important for session key)
+        var orderId = $('#input-order-id').val();
+        if (orderId) {
+            customerInfo.order_id = orderId;
+        }
+        
+        console.log('Saving customer info with order_id:', orderId, customerInfo);
+        
+        $.ajax({
+            url: 'index.php?route=extension/econt_delivery_oc4/shipping/econt_delivery.saveAdminCustomerInfo&user_token=' + userToken,
+            type: 'POST',
+            data: customerInfo,
+            dataType: 'json',
+            success: function(json) {
+                console.log('Customer info saved:', json);
+                
+                if (json.error) {
+                    alert(json.error);
+                    $loader.hide();
+                    $iframe.show();
+                    return;
+                }
+                
+                if (json.success) {
+                    addressSelected = true;
+                    var info = json.customer_info;
+                    
+                    // Update form fields
+                    var nameParts = info.name.split(' ', 2);
+                    $('input[name="shipping_firstname"]').val(nameParts[0] || '');
+                    $('input[name="shipping_lastname"]').val(nameParts[1] || '');
+                    $('input[name="shipping_company"]').val(info.face || '');
+                    $('input[name="shipping_city"]').val(info.city_name || '');
+                    $('input[name="shipping_postcode"]').val(info.post_code || '');
+                    
+                    if (info.office_code) {
+                        $('input[name="shipping_address_1"]').val('Econt office: ' + (info.office_name || ''));
+                        $('input[name="shipping_address_2"]').val(info.address || '');
+                    } else {
+                        $('input[name="shipping_address_1"]').val(info.address || '');
+                        $('input[name="shipping_address_2"]').val('');
+                    }
+                    
+                    if (info.email) $('input[name="email"]').val(info.email);
+                    if (info.phone) $('input[name="telephone"]').val(info.phone);
+                    
+                    // Update shipping cost in the hidden field
+                    if (json.shipping_price) {
+                        $('#input-shipping-method-cost').val(json.shipping_price.toFixed(2));
+                        console.log('Updated shipping cost to:', json.shipping_price);
+                    }
+                    
+                    // Close modal
+                    $('#econt-address-selection-modal').modal('hide');
+                    
+                    // Trigger cart refresh to save the updated shipping info and customer data
+                    // This will call the backend which triggers the save events
+                    setTimeout(function() {
+                        console.log('Triggering cart refresh to save Econt customer info...');
+                        $('#button-refresh').trigger('click');
+                    }, 500);
+                    
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error saving customer info:', error);
+                alert('Failed to save address. Please try again.');
+                $loader.hide();
+                $iframe.show();
+            }
+        });
+    };
+    
+    // Calculate order total from products
+    var calculateOrderTotal = function() {
+        var total = 0;
+        $('input[name^="product["][name$="][total]"]').each(function() {
+            total += parseFloat($(this).val()) || 0;
+        });
+        return total;
+    };
+    
+    // Calculate order weight from products (via AJAX)
+    var calculateOrderWeight = function(callback) {
+        $.ajax({
+            url: 'index.php?route=sale/order.call&user_token=' + userToken + '&call=cart&store_id=' + $('#input-store').val() + '&language=' + $('#input-language').val() + '&currency=' + $('#input-currency').val(),
+            type: 'post',
+            data: $('#form-customer, #form-cart, #form-shipping-address, #form-shipping-method, #form-payment-address, #form-payment-method, #collapse-order form').serialize(),
+            dataType: 'json',
+            contentType: 'application/x-www-form-urlencoded',
+            success: function(json) {
+                var totalWeight = 0;
+                
+                // Calculate weight from products
+                if (json.products && json.products.length > 0) {
+                    for (var i = 0; i < json.products.length; i++) {
+                        var product = json.products[i];
+                        var weight = parseFloat(product.weight) || 0;
+                        var quantity = parseInt(product.quantity) || 1;
+                        totalWeight += (weight * quantity);
+                    }
+                }
+                
+                console.log('Calculated order weight:', totalWeight);
+                
+                if (callback && typeof callback === 'function') {
+                    callback(totalWeight);
+                }
+            },
+            error: function() {
+                console.error('Failed to calculate order weight');
+                if (callback && typeof callback === 'function') {
+                    callback(0);
+                }
+            }
+        });
+    };
+    
+    // Inject button next to shipping method
+    var injectSelectAddressButton = function() {
+        var shippingMethodInput = $('input[name="choose_shipping"][value="econt_delivery.econt_delivery"]');
+        if (!shippingMethodInput.length) {
+            console.log('Shipping method input not found');
+            return;
+        }
+        
+        var selectedMethod = shippingMethodInput.val();
+        console.log('Shipping method detected:', selectedMethod);
+        
+        if (selectedMethod !== 'econt_delivery.econt_delivery') {
+            console.log('Not Econt delivery, skipping button injection');
+            return;
+        }
+        
+        // Check if button already exists
+        if ($('#econt-select-address-btn').length) {
+            console.log('Button already exists');
+            return;
+        }
+        
+        console.log('Injecting address selection button');
+        
+        // Create button
+        var button = $('<a>')
+            .attr({
+                'id': 'econt-select-address-btn',
+                'href': '#',
+                'class': 'btn btn-primary'
+            })
+            .css('margin-left', '10px')
+            .html('<i class="fa fa-map-marker"></i> ' + textSelectAddress)
+            .on('click', openEcontAddressModal);
+        
+        
+        // Insert button after the input
+        shippingMethodInput.after(button);
+        console.log('Button injected successfully');
+    };
+    
+    // Watch for shipping method changes
+    var watchShippingMethod = function() {
+        console.log('Setting up shipping method observer');
+        
+        // Listen for changes
+        $(document).on('change', 'input[name="choose_shipping"]', function() {
+            console.log('Shipping method changed to:', this.value);
+            
+            // Remove existing button
+            $('#econt-select-address-btn').remove();
+            
+            // Inject button if Econt is selected
+            if (this.value === 'econt_delivery.econt_delivery') {
+                setTimeout(injectSelectAddressButton, 100);
+            }
+        });
+        
+        // Check periodically for the field (fallback for dynamic forms)
+        var checkAttempts = 0;
+        var checkInterval = setInterval(function() {
+            checkAttempts++;
+            
+            var input = $('input[name="choose_shipping"]');
+            if (input.length && input.val() === 'econt_delivery.econt_delivery') {
+                console.log('Econt shipping detected on attempt ' + checkAttempts);
+                injectSelectAddressButton();
+                clearInterval(checkInterval);
+            }
+            
+            if (checkAttempts >= 20) {
+                clearInterval(checkInterval);
+                console.log('Stopped checking for shipping method');
+            }
+        }, 500);
+    };
+    
+    // Initialize
+    var init = function() {
+        console.log('Initializing Econt admin order form integration');
+        
+        // Create modal
+        createModal();
+        
+        // Setup postMessage listener
+        window.addEventListener('message', handleIframeMessage);
+        
+        // Watch for shipping method selection
+        watchShippingMethod();
+        
+        console.log('Econt admin order form script initialized');
+    };
+    
+    // Start when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+
+<style>
+#econt-address-selection-modal .modal-dialog {
+    max-width: 900px;
+}
+
+#econt-address-selection-modal iframe {
+    border: 0;
+    width: 100%;
+    height: 600px;
+}
+
+#econt-address-loader {
+    min-height: 100px;
+}
+
+.econt-select-address-btn {
+    margin-left: 10px !important;
+}
+
+@media (max-width: 768px) {
+    #econt-address-selection-modal .modal-dialog {
+        max-width: 100%;
+        margin: 0.5rem;
+    }
+    
+    #econt-address-selection-modal iframe {
+        height: 500px;
+    }
+}
+</style>

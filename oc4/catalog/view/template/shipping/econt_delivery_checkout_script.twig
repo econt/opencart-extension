@@ -1,0 +1,401 @@
+{# Econt Delivery Checkout Integration Script - OpenCart 4 #}
+<script type="text/javascript">
+
+(function() {
+    'use strict';
+    
+    // Initialize Econt delivery integration
+    var initEcontCheckout = function() {
+        console.log('Econt checkout script initializing...');
+        
+        var language = '{{ language }}';
+        var modalOpenInProgress = false;
+        var addressSelected = false;
+        var iframeInjected = false;
+        var currentDeliveryBaseUrl = '';
+        var textSelectAddressBelow = '{{ text_select_address_below|escape('js') }}';
+        var textChooseAddress = '{{ text_choose_address|escape('js') }}';
+        
+        // Function to inject iframe container into shipping modal
+        var injectIframeContainer = function() {
+            if (iframeInjected) {
+                console.log('Iframe container already injected');
+                return;
+            }
+            
+            var shippingModal = document.getElementById('modal-shipping');
+            if (!shippingModal) {
+                console.warn('Shipping modal not found');
+                return;
+            }
+            
+            var modalBody = shippingModal.querySelector('.modal-body');
+            if (!modalBody) {
+                console.warn('Modal body not found');
+                return;
+            }
+            
+            console.log('Injecting iframe container into modal');
+            
+            // Create iframe container
+            var iframeContainer = document.createElement('div');
+            iframeContainer.id = 'econt-iframe-container';
+            iframeContainer.style.display = 'none';
+            iframeContainer.className = 'mt-3';
+            iframeContainer.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fa fa-info-circle"></i> ` + textSelectAddressBelow + `
+                </div>
+                <div id="econt-iframe-loader" class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">` + textChooseAddress + `</p>
+                </div>
+                <iframe id="econt-iframe-inline" 
+                        style="display: none; width: 100%; height: 600px; border: 1px solid #dee2e6; border-radius: 0.25rem;"
+                        title="{{ text_title|escape('html_attr') }}">
+                </iframe>
+            `;
+            
+            modalBody.appendChild(iframeContainer);
+            iframeInjected = true;
+            console.log('Iframe container injected successfully');
+            
+            // Setup postMessage listener
+            window.addEventListener('message', handleIframeMessage);
+        };
+        
+        // Handle messages from iframe
+        var handleIframeMessage = function(event) {
+            // Validate origin
+            if (!currentDeliveryBaseUrl || event.origin.indexOf(currentDeliveryBaseUrl) !== 0) {
+                return;
+            }
+            
+            var data = event.data;
+            if (!data) {
+                return;
+            }
+            
+            // Handle error from iframe
+            if (data.shipment_error) {
+                alert(data.shipment_error);
+                return;
+            }
+            
+            // Save customer info
+            saveCustomerInfo(data);
+        };
+        
+        // Function to show Econt iframe in modal
+        var showEcontIframeInModal = function() {
+            if (modalOpenInProgress) {
+                console.log('Modal open already in progress');
+                return;
+            }
+            
+            console.log('Fetching Econt iframe parameters...');
+            modalOpenInProgress = true;
+            
+            // Fetch iframe parameters
+            $.ajax({
+                url: 'index.php?route=extension/econt_delivery_oc4/shipping/econt_delivery.getCustomerInfoParams&language=' + language,
+                type: 'GET',
+                dataType: 'json',
+                success: function(json) {
+                    console.log('Econt params received:', json);
+                    
+                    modalOpenInProgress = false;
+                    
+                    if (json.error) {
+                        alert(json.error);
+                        return;
+                    }
+                    
+                    if (json.success && json.iframe_url) {
+                        currentDeliveryBaseUrl = json.delivery_base_url;
+                        loadIframeInModal(json.iframe_url);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    modalOpenInProgress = false;
+                    console.error('Error fetching Econt parameters:', error);
+                    alert('Failed to load Econt delivery form. Please try again.');
+                }
+            });
+        };
+        
+        // Load iframe in the shipping modal
+        var loadIframeInModal = function(iframeUrl) {
+            var container = document.getElementById('econt-iframe-container');
+            var iframe = document.getElementById('econt-iframe-inline');
+            var loader = document.getElementById('econt-iframe-loader');
+
+            if (!container || !iframe || !loader) {
+                injectIframeContainer();
+                initEcontCheckout();
+                return;
+            }
+            
+            // Show container
+            container.style.display = 'block';
+            
+            // Show loader
+            loader.style.display = 'block';
+            iframe.style.display = 'none';
+            
+            // Set iframe source
+            iframe.src = iframeUrl;
+            
+            // Show iframe when loaded
+            iframe.onload = function() {
+                loader.style.display = 'none';
+                iframe.style.display = 'block';
+            };
+        };
+        
+        // Hide iframe container
+        var hideIframeContainer = function() {
+            var container = document.getElementById('econt-iframe-container');
+            if (container) {
+                container.style.display = 'none';
+            }
+        };
+        
+        // Save customer info
+        var saveCustomerInfo = function(customerInfo) {
+            var loader = document.getElementById('econt-iframe-loader');
+            var iframe = document.getElementById('econt-iframe-inline');
+            
+            // Show loader
+            if (loader) loader.style.display = 'block';
+            if (iframe) iframe.style.display = 'none';
+            
+            $.ajax({
+                url: 'index.php?route=extension/econt_delivery_oc4/shipping/econt_delivery.saveCustomerInfo&language=' + language,
+                type: 'POST',
+                dataType: 'json',
+                data: customerInfo,
+                contentType: 'application/x-www-form-urlencoded',
+                success: function(json) {
+                    console.log('Econt customer info saved:', json);
+                    
+                    if (json.error) {
+                        alert(json.error);
+                        if (loader) loader.style.display = 'none';
+                        if (iframe) iframe.style.display = 'block';
+                        return;
+                    }
+                    
+                    if (json.success) {
+                        // Mark address as selected
+                        addressSelected = true;
+                        
+                        // Hide iframe container
+                        hideIframeContainer();
+                        
+                        // Update the shipping method display with price
+                        if (json.shipping_price && json.shipping_price > 0) {
+                            updateShippingMethodPrice(json.shipping_price, json.customer_info);
+                        }
+                        
+                        // Show success message
+                        showSuccessAlert('Address selected successfully! Shipping price: ' + json.shipping_price.toFixed(2) + ' лв');
+                        
+                        // Submit the form to continue
+                        setTimeout(function() {
+                            var continueBtn = document.querySelector('#modal-shipping button[type="submit"]');
+                            if (continueBtn) {
+                                continueBtn.click();
+                            }
+                        }, 500);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error saving customer info:', error);
+                    alert('Failed to save address. Please try again.');
+                    if (loader) loader.style.display = 'none';
+                    if (iframe) iframe.style.display = 'block';
+                }
+            });
+        };
+        
+        // Hook into shipping method modal radio button changes
+        var hookShippingMethodSelection = function() {
+            console.log('Registering shipping method selection hooks');
+            
+            // Listen for radio button changes in the shipping method modal
+            $(document).on('change', 'input[name="shipping_method"]', function() {
+                var selectedMethod = $(this).val();
+                console.log('Shipping method changed to:', selectedMethod);
+                
+                if (selectedMethod === 'econt_delivery.econt_delivery') {
+                    console.log('Econt delivery selected, addressSelected:', addressSelected);
+                    // Econt delivery selected - always show iframe to allow address change
+                    showEcontIframeInModal();
+                    // Hide the submit button as iframe will handle submission
+                    hideShippingSubmitButton();
+                } else {
+                    // Other method selected - hide iframe container
+                    console.log('Other method selected, hiding iframe');
+                    hideIframeContainer();
+                    // Show the submit button for other shipping methods
+                    showShippingSubmitButton();
+                }
+            });
+            
+            // Inject iframe container when modal opens
+            $(document).on('shown.bs.modal', '#modal-shipping', function() {
+                console.log('Shipping modal opened');
+                injectIframeContainer();
+                
+                // Check if Econt is already selected
+                setTimeout(function() {
+                    var selectedMethod = $('input[name="shipping_method"]:checked').val();
+                    console.log('Currently selected method:', selectedMethod);
+                    
+                    if (selectedMethod === 'econt_delivery.econt_delivery') {
+                        console.log('Econt is pre-selected, showing iframe');
+                        showEcontIframeInModal();
+                        hideShippingSubmitButton();
+                    } else {
+                        showShippingSubmitButton();
+                    }
+                }, 100);
+            });
+            
+            // Hide iframe when modal closes
+            $(document).on('hidden.bs.modal', '#modal-shipping', function() {
+                hideIframeContainer();
+                showShippingSubmitButton();
+                // Clear iframe source to stop any processing
+                var iframe = document.getElementById('econt-iframe-inline');
+                if (iframe && !addressSelected) {
+                    iframe.src = 'about:blank';
+                }
+            });
+        };
+        
+        // Show success alert
+        var showSuccessAlert = function(message) {
+            var alertHtml = '<div class="alert alert-success alert-dismissible">' +
+                '<i class="fa fa-check-circle"></i> ' + message +
+                ' <button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                '</div>';
+            
+            // Try to find alert container in modal first
+            var modalAlert = document.querySelector('#modal-shipping .modal-body');
+            if (modalAlert) {
+                modalAlert.insertAdjacentHTML('afterbegin', alertHtml);
+            } else {
+                // Fallback to page alert container
+                var alertContainer = document.getElementById('alert');
+                if (alertContainer) {
+                    alertContainer.insertAdjacentHTML('afterbegin', alertHtml);
+                }
+            }
+            
+            // Auto-dismiss after 3 seconds
+            setTimeout(function() {
+                var alert = document.querySelector('.alert-success');
+                if (alert && bootstrap.Alert) {
+                    var bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }
+            }, 3000);
+        };
+        
+        // Update shipping method display with price
+        var updateShippingMethodPrice = function(price, customerInfo) {
+            // Find the label for Econt delivery in the modal
+            var econtLabel = document.querySelector('label[for="input-shipping-method-econt-delivery-econt-delivery"]');
+            if (econtLabel) {
+                var currentText = econtLabel.textContent || econtLabel.innerText;
+                // Remove old price if exists
+                currentText = currentText.replace(/\s*-\s*[\d.,]+\s*[^\s]*(\s*\([^)]*\))?$/, '');
+                // Add new price
+                var displayText = currentText + ' - ' + price.toFixed(2) + ' лв';
+                
+                // Add address info if available
+                if (customerInfo) {
+                    if (customerInfo.office_name) {
+                        displayText += ' (Office: ' + customerInfo.office_name + ')';
+                    } else if (customerInfo.city_name) {
+                        displayText += ' (' + customerInfo.city_name + ')';
+                    }
+                }
+                
+                econtLabel.textContent = displayText;
+            }
+        };
+        
+        // Hide shipping submit button
+        var hideShippingSubmitButton = function() {
+            var submitBtn = document.getElementById('button-shipping-method');
+            if (submitBtn) {
+                submitBtn.style.display = 'none';
+                console.log('Shipping submit button hidden');
+            }
+        };
+        
+        // Show shipping submit button
+        var showShippingSubmitButton = function() {
+            var submitBtn = document.getElementById('button-shipping-method');
+            if (submitBtn) {
+                submitBtn.style.display = '';
+                console.log('Shipping submit button shown');
+            }
+        };
+        
+        // Initialize hooks
+        hookShippingMethodSelection();
+        console.log('Econt hooks registered successfully');
+    };
+    
+    // Initialize immediately when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initEcontCheckout);
+    } else {
+        initEcontCheckout();
+    }
+})();
+</script>
+
+<style>
+#econt-iframe-container {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    border: 1px solid #dee2e6;
+}
+
+#econt-iframe-container .alert {
+    margin-bottom: 15px;
+}
+
+#econt-iframe-loader {
+    min-height: 100px;
+}
+
+#econt-iframe-inline {
+    background-color: #fff;
+}
+
+/* Make modal larger when iframe is visible */
+#modal-shipping.has-econt-iframe .modal-dialog {
+    max-width: 1000px;
+}
+
+@media (max-width: 768px) {
+    #econt-iframe-inline {
+        height: 500px;
+    }
+    
+    #modal-shipping .modal-dialog {
+        max-width: 100%;
+        margin: 0.5rem;
+    }
+}
+</style>

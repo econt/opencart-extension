@@ -21,6 +21,7 @@ $_['text_default_error_message'] = 'Error. Please, contact administrator.';
 $_['text_empty_customer_info_url'] = 'Invalid URL for Econt Delivery!';
 $_['text_shipping_via_econt'] = 'Econt Delivery';
 $_['text_trace_shipping'] = 'Track and trace shipment';
+$_['error_private_key'] = 'Connection code is required!';
 $_['text_invalid_order_id'] = 'Invalid Order ID!';
 $_['text_invalid_shipping_method'] = 'Invalid Order ID';
 $_['text_checkout_mode'] = 'Checkout mode';
@@ -29,3 +30,13 @@ $_['text_checkout_mode_onestep'] = 'One step';
 
 $_['text_order_list_econt_shipping_column_label'] = 'Econt Waybill';
 $_['text_order_list_econt_shipping_column_prepare_loading'] = 'Prepare loading';
+
+// Admin order form integration
+$_['text_delivery_method_title'] = 'Econt Delivery';
+$_['text_choose_address'] = 'Please select your delivery address...';
+$_['text_select_address_below'] = 'Please select your delivery address below:';
+$_['error_configuration'] = 'Econt Delivery is not properly configured. Please contact the administrator.';
+$_['err_missing_customer_info'] = 'Please select your delivery address from Econt delivery options!';
+$_['text_catalog_controller_api_extension_econt_delivery_shop_id_error'] = 'Error. Invalid security code!';
+$_['text_econt_delivery_order'] = 'Order';
+$_['text_econt_delivery_order_discount'] = 'Discount';

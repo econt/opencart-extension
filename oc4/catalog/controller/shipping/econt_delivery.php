@@ -1,589 +1,544 @@
 <?php
 
-/** @noinspection PhpUnused */
-/** @noinspection PhpUnusedParameterInspection */
-
-/**
- * @property Request $request
- * @property Response $response
- * @property Session $session
- * @property \Cart\Cart $cart
- * @property ModelCheckoutOrder $model_checkout_order
- * @property ControllerApiExtensionEcontDelivery
- * @property Loader $load
- * @property Language $language
- * @property ModelCatalogProduct $model_catalog_product
- * @property Url $url
- * @property ModelSettingSetting $model_setting_setting
- * @property ModelExtensionShippingEcontDelivery $model_extension_shipping_econt_delivery
- * @property DB $db
- */
-
 namespace Opencart\Catalog\Controller\Extension\EcontDeliveryOc4\Shipping;
+
 class EcontDelivery extends \Opencart\System\Engine\Controller {
 
-    public function afterModelCheckoutOrderAddHistory($eventRoute, &$data) {
-	    //$order_info = $this->model_checkout_order->getOrder($this->session->data['order_id']);
-	    //
-	    //if ($order_info && !$order_info['order_status_id']) {
-		//    $this->model_checkout_order->editOrder($this->session->data['order_id'], $order_data);
-	    //}
-        $this->load->model('extension/econt_delivery_oc4/shipping/econt_delivery');
+    /**
+     * Get customer info parameters for iframe
+     * 
+     * @return void
+     */
+    public function getCustomerInfoParams(): void {
+        $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
         $this->load->model('setting/setting');
 
+        $json = [];
+
+        try {
+            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+
+            if (empty($settings['shipping_econt_delivery_system_url']) || empty($settings['shipping_econt_delivery_private_key'])) {
+                throw new \Exception($this->language->get('error_configuration'));
+            }
+
+            $separatorPos = strpos($settings['shipping_econt_delivery_private_key'], '@');
+            if ($separatorPos === false) {
+                throw new \Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_shop_id_error'));
+            }
+
+            $shopId = substr($settings['shipping_econt_delivery_private_key'], 0, $separatorPos);
+            if (intval($shopId) <= 0) {
+                throw new \Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_shop_id_error'));
+            }
+
+            $this->load->model('extension/econt_delivery_oc4/shipping/econt_delivery');
+
+            $customer = $this->customer;
+            $email = $customer->isLogged() ? $customer->getEmail() : ($this->session->data['guest']['email'] ?? '');
+            $phone = $customer->isLogged() ? $customer->getTelephone() : ($this->session->data['guest']['telephone'] ?? '');
+            
+            $shippingAddress = $this->session->data['shipping_address'] ?? [];
+            $firstname = $shippingAddress['firstname'] ?? '';
+            $lastname = $shippingAddress['lastname'] ?? '';
+
+            $frameParams = [
+                'id_shop' => intval($shopId),
+                'order_weight' => $this->cart->getWeight(),
+                'order_total' => $this->model_extension_econt_delivery_oc4_shipping_econt_delivery->getOrderTotal(),
+                'order_currency' => $this->session->data['currency'] ?? $this->config->get('config_currency'),
+                'customer_company' => $shippingAddress['company'] ?? '',
+                'customer_name' => trim($firstname . ' ' . $lastname),
+                'customer_phone' => $phone,
+                'customer_email' => $email,
+                'customer_country' => $shippingAddress['iso_code_3'] ?? '',
+                'customer_city_name' => $shippingAddress['city'] ?? '',
+                'customer_post_code' => $shippingAddress['postcode'] ?? '',
+                'customer_address' => trim(($shippingAddress['address_1'] ?? '') . ' ' . ($shippingAddress['address_2'] ?? '')),
+                'ignore_history' => true,
+                'default_css' => true
+            ];
+
+            // Include existing office code if available
+            $officeCode = trim($this->session->data['econt_delivery']['customer_info']['office_code'] ?? '');
+            if (!empty($officeCode)) {
+                $frameParams['customer_office_code'] = $officeCode;
+            }
+
+            $zip = trim($this->session->data['econt_delivery']['customer_info']['zip'] ?? '');
+            if (!empty($zip)) {
+                $frameParams['customer_zip'] = $zip;
+            }
+
+            $json['success'] = true;
+            $json['iframe_url'] = $settings['shipping_econt_delivery_system_url'] . '/customer_info.php?' . http_build_query($frameParams, '', '&');
+            $json['delivery_base_url'] = $settings['shipping_econt_delivery_system_url'];
+
+        } catch (\Exception $e) {
+            $json['error'] = $e->getMessage();
+        }
+
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+
+    /**
+     * Save customer info from Econt iframe
+     * 
+     * @return void
+     */
+    public function saveCustomerInfo(): void {
+        $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
+
+        $json = [];
+
+        try {
+            
+            if (empty($this->request->post)) {
+                throw new \Exception($this->language->get('err_missing_customer_info'));
+            }
+
+            $customerInfo = $this->request->post;
+
+            // Validate required fields
+            if (empty($customerInfo['id']) || empty($customerInfo['name'])) {
+                throw new \Exception($this->language->get('err_missing_customer_info'));
+            }
+
+            // Save to session
+            $this->session->data['econt_delivery']['customer_info'] = $customerInfo;
+
+            // Update shipping address in session
+            $this->updateSessionAddress($customerInfo);
+
+            // Calculate and update shipping price
+            $this->load->model('extension/econt_delivery_oc4/shipping/econt_delivery');
+            $shippingPrice = $this->model_extension_econt_delivery_oc4_shipping_econt_delivery->calculateShippingPrice();
+
+            if (isset($this->session->data['shipping_method']) && $this->session->data['shipping_method']['code'] === 'econt_delivery.econt_delivery') {
+                $this->session->data['shipping_method']['cost'] = $shippingPrice;
+                $this->session->data['shipping_methods']['econt_delivery']['quote']['econt_delivery']['cost'] = $shippingPrice;
+            }
+
+            $json['success'] = true;
+            $json['customer_info'] = $customerInfo;
+            $json['shipping_price'] = $shippingPrice;
+
+        } catch (\Exception $e) {
+            $json['error'] = $e->getMessage();
+        }
+
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+
+    /**
+     * Update session address with Econt customer info
+     * 
+     * @param array $customerInfo
+     * @return void
+     */
+    private function updateSessionAddress(array $customerInfo): void {
+        $nameParts = explode(' ', trim($customerInfo['name']), 2);
+        $firstname = $nameParts[0] ?? '';
+        $lastname = $nameParts[1] ?? '';
+
+        $this->session->data['shipping_address']['firstname'] = $firstname;
+        $this->session->data['shipping_address']['lastname'] = $lastname;
+        $this->session->data['shipping_address']['iso_code_3'] = $customerInfo['country_code'] ?? 'BGR';
+        $this->session->data['shipping_address']['city'] = $customerInfo['city_name'] ?? '';
+        $this->session->data['shipping_address']['postcode'] = $customerInfo['post_code'] ?? '';
+        $this->session->data['shipping_address']['email'] = $customerInfo['email'] ?? '';
+        $this->session->data['shipping_address']['telephone'] = $customerInfo['phone'] ?? '';
+
+        if (!empty($customerInfo['office_code'])) {
+            $this->session->data['shipping_address']['address_1'] = 'Econt office: ' . ($customerInfo['office_name'] ?? '');
+            $this->session->data['shipping_address']['address_2'] = $customerInfo['address'] ?? '';
+        } else {
+            $this->session->data['shipping_address']['address_1'] = $customerInfo['address'] ?? '';
+            $this->session->data['shipping_address']['address_2'] = '';
+        }
+    }
+
+    /**
+     * Validate shipping method has customer info before saving
+     * Event: catalog/controller/checkout/shipping_method.save/before
+     * 
+     * @param string $route
+     * @param array $args
+     * @return void
+     */
+    public function validateCustomerInfo(string $route, array &$args): void {
+        if (isset($this->request->post['shipping_method']) && $this->request->post['shipping_method'] === 'econt_delivery.econt_delivery') {
+            if (empty($this->session->data['econt_delivery']['customer_info'])) {
+                $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
+                
+                $json = ['error' => $this->language->get('err_missing_customer_info')];
+                
+                $this->response->addHeader('Content-Type: application/json');
+                $this->response->setOutput(json_encode($json));
+                $this->response->output();
+                exit;
+            }
+        }
+    }
+
+    /**
+     * Update order data before creation with Econt address
+     * Event: catalog/model/checkout/order/addOrder/before
+     * 
+     * @param string $route
+     * @param array $args
+     * @return void
+     */
+    public function beforeOrderCreate(string $route, array &$args): void {
+        $orderData = &$args[0];
+
+        if (isset($orderData['shipping_method']) && $orderData['shipping_method']['code'] === 'econt_delivery.econt_delivery') {
+            $customerInfo = $this->session->data['econt_delivery']['customer_info'] ?? null;
+
+            if ($customerInfo) {
+                // Parse customer name
+                $nameParts = explode(' ', trim($customerInfo['name']), 2);
+                $firstname = $nameParts[0] ?? '';
+                $lastname = $nameParts[1] ?? '';
+
+                // Update order shipping address
+                $orderData['shipping_firstname'] = $firstname;
+                $orderData['shipping_lastname'] = $lastname;
+                $orderData['shipping_company'] = $customerInfo['face'] ?? '';
+                $orderData['shipping_city'] = $customerInfo['city_name'] ?? '';
+                $orderData['shipping_postcode'] = $customerInfo['post_code'] ?? '';
+                $orderData['shipping_country'] = $customerInfo['country_name'] ?? '';
+                $orderData['shipping_zone'] = $customerInfo['region_name'] ?? '';
+
+                if (!empty($customerInfo['office_code'])) {
+                    $orderData['shipping_address_1'] = 'Econt office: ' . ($customerInfo['office_name'] ?? '');
+                    $orderData['shipping_address_2'] = $customerInfo['address'] ?? '';
+                } else {
+                    $orderData['shipping_address_1'] = $customerInfo['address'] ?? '';
+                    $orderData['shipping_address_2'] = '';
+                }
+
+                // Update contact info if available
+                if (!empty($customerInfo['email'])) {
+                    $orderData['email'] = $customerInfo['email'];
+                }
+                if (!empty($customerInfo['phone'])) {
+                    $orderData['telephone'] = $customerInfo['phone'];
+                }
+            }
+        }
+    }
+
+    /**
+     * Save customer info to database after order is created
+     * Event: catalog/model/checkout/order/addOrder/after
+     * 
+     * @param string $route
+     * @param array $args
+     * @param mixed $output
+     * @return void
+     */
+    public function afterCheckoutConfirmConfirm(string $route, array &$args, &$output): void {
+
+        $orderId = $this->session->data['order_id'] ?? null;
+
+        if ($orderId && isset($this->session->data['shipping_method']['code']) && $this->session->data['shipping_method']['code'] === 'econt_delivery.econt_delivery') {
+            
+            $customerInfo = $this->session->data['econt_delivery']['customer_info'] ?? null;
+
+            if ($customerInfo && $orderId > 0) {
+                $this->db->query("
+                    INSERT INTO `" . DB_PREFIX . "econt_delivery_customer_info`
+                    SET id_order = " . (int)$orderId . ",
+                        customer_info = '" . $this->db->escape(json_encode($customerInfo)) . "'
+                    ON DUPLICATE KEY UPDATE
+                        customer_info = VALUES(customer_info)
+                ");
+            }
+        }
+    }
+
+    /**
+     * Send order to Econt API after order confirmation
+     * Event: catalog/model/checkout/addHistory/after
+     * 
+     * @param string $route
+     * @param array $args
+     * @return void
+     */
+    public function syncOrderWithEcont(string $route, array &$args): void {
+        $orderId = $args[0];
+        $order_status_id = $args[1];
+
+        $this->load->model('checkout/order');
+        $this->load->model('setting/setting');
+        $this->load->model('extension/econt_delivery_oc4/shipping/econt_delivery');
+
+        $orderData = $this->model_checkout_order->getOrder($orderId);
+
+        if (empty($orderData) || $orderData['shipping_method']['code'] !== 'econt_delivery.econt_delivery') {
+            return;
+        }
+
         $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
-        $data = $this->model_extension_econt_delivery_oc4_shipping_econt_delivery->prepareOrder();
-        $order = $data['order'];
-        $orderData = $data['orderData'];
-        $customerInfo = $data['customerInfo'];
 
-        if ((
-                empty($settings['shipping_econt_delivery_system_url'])
-            ||  empty($settings['shipping_econt_delivery_private_key'])
-        ) || (
-                empty($order)
-            ||  empty($orderData)
-            ||  empty($customerInfo)
-        )) return json_decode(null, true);
+        if (empty($settings['shipping_econt_delivery_system_url']) || empty($settings['shipping_econt_delivery_private_key'])) {
+            return;
+        }
 
-        $response = [];
+        $preparedOrderData = $this->model_extension_econt_delivery_oc4_shipping_econt_delivery->prepareOrder($orderId);
+
+        if (!$preparedOrderData || empty($preparedOrderData['order'])) {
+            return;
+        }
+
         try {
             $curl = curl_init();
-            curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/OrdersService.updateOrder.json");
+            curl_setopt($curl, CURLOPT_URL, $settings['shipping_econt_delivery_system_url'] . '/services/OrdersService.updateOrder.json');
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
             curl_setopt($curl, CURLOPT_HTTPHEADER, [
                 'Content-Type: application/json',
-                "Authorization: {$settings['shipping_econt_delivery_private_key']}"
+                'Authorization: ' . $settings['shipping_econt_delivery_private_key']
             ]);
             curl_setopt($curl, CURLOPT_POST, true);
-            curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($order));
+            curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($preparedOrderData['order']));
             curl_setopt($curl, CURLOPT_TIMEOUT, 6);
             $response = curl_exec($curl);
             curl_close($curl);
-        } catch (Exception $exception) {
-            $logger = new Log('econt_delivery.log');
-            $logger->write(sprintf('Curl failed with error [%d] %s', $exception->getCode(), $exception->getMessage()));
+        } catch (\Exception $e) {
+            $this->log->write('Econt Delivery: Failed to sync order ' . $orderId . ' - ' . $e->getMessage());
+            error_log('Econt Delivery: Failed to sync order ' . $orderId . ' - ' . $e->getMessage());
         }
-
-        if ($orderData['shipping_code'] === 'econt_delivery.econt_delivery' && $orderData['order_id']) {
-	        $this->session->data['econt_delivery']['last_order_id'] = $orderData['order_id'];
-            $this->session->data['shipping_address']['address_1'] = ($customerInfo['office_code'] ? $customerInfo['office_name'] : $customerInfo['address']);
-            $this->session->data['shipping_address']['address_2'] = ($customerInfo['office_code'] ? $customerInfo['address'] : '');
-            $this->session->data['shipping_address']['city'] = $customerInfo['city_name'];
-            $this->session->data['shipping_address']['postcode'] = $customerInfo['post_code'];
-            $this->db->query(sprintf("
-                UPDATE `%s`.`%sorder` AS o
-                SET o.shipping_address_1 = '%s',
-                    o.shipping_address_2 = '%s',
-                    o.shipping_city = '%s',
-                    o.shipping_postcode = '%s'
-                WHERE TRUE
-                    AND o.order_id = %d
-            ",
-                DB_DATABASE,
-                DB_PREFIX,
-                $this->db->escape($this->session->data['shipping_address']['address_1']),
-                $this->db->escape($this->session->data['shipping_address']['address_2']),
-                $this->db->escape($this->session->data['shipping_address']['city']),
-                $this->db->escape($this->session->data['shipping_address']['postcode']),
-                $orderData['order_id']
-            ));
-        }
-
-        return json_decode($response, true);
     }
 
-	/** @noinspection PhpUndefinedFieldInspection */
-	public function afterViewCheckoutCheckout($route, $params, $html) {
-		$this->load->model('setting/setting');
-		$settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
-		if($settings["shipping_econt_delivery_status"] == 1){
-			$this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
-			if($this->cart->customer && $this->cart->customer->getEmail()) {
-				$email = $this->cart->customer->getEmail();
-				$phone = $this->cart->customer->getTelephone();
-			} else {
-				$email = $this->session->data['shipping_address']['email'] ?? $this->session->data['guest']['email'] ?? '';
-				$phone = $this->session->data['shipping_address']['telephone'] ?? $this->session->data['guest']['telephone'] ?? '';
-			}
-			
-			$keys = explode('@', $settings['shipping_econt_delivery_private_key']);
-			$frameParams = [
-				'id_shop' => intval(reset($keys)),
-				'order_weight' => $this->cart->getWeight(),
-				'order_total' => $this->getOrderTotal(),
-				'order_currency' => $this->session->data['currency'],
-				'customer_company' => $this->session->data['shipping_address']['company'],
-				'customer_name' => "{$this->session->data['shipping_address']['firstname']} {$this->session->data['shipping_address']['lastname']}",
-				'customer_phone' =>  $phone,
-				'customer_email' => $email,
-				'customer_country' => $this->session->data['shipping_address']['iso_code_3'],
-				'customer_city_name' => $this->session->data['shipping_address']['city'],
-				'customer_post_code' => $this->session->data['shipping_address']['postcode'],
-				'customer_address' => $this->session->data['shipping_address']['address_1'].' '.$this->session->data['shipping_address']['address_2'],
-			];
-			$officeCode = trim($this->session->data['econt_delivery']['customer_info']['office_code'] ?? '');
-			if (!empty($officeCode)) $frameParams['customer_office_code'] = $officeCode;
-			$zip = trim($this->session->data['econt_delivery']['customer_info']['zip'] ?? '');
-			if (!empty($zip)) $frameParams['customer_zip'] = $zip;
-			$frameParams['module'] = 'onecheckout';
-			
-			$deliveryBaseURL = $settings['shipping_econt_delivery_system_url'];
-			$frameURL = $deliveryBaseURL.'/customer_info.php?'. http_build_query($frameParams, '', '&');
-			$deliveryMethodTxt = $this->language->get('text_delivery_method_description');
-			$deliveryMethodPriceCD = $this->language->get('text_delivery_method_description_cd');
-			
-			
-			
-			$response = $this->registry->get('response');
-			$output = $response->getOutput();
-			/** @noinspection JSUnresolvedReference */
-			/** @noinspection HtmlUnknownTarget */
-			$output = $this->replaceBetween(
-				'<script src="catalog/view/javascript/common.js" type="text/javascript"></script>',
-				'</head>',
-				$output,
-				"\n
-				<script type=\"text/javascript\">
-					$(document).ready(function() {
-						var isLogged = ".($this->cart->customer->getId() ? 1 : 0).";
-						if(isLogged){
-							$('#input-shipping-firstname').parent().parent()[0].style = 'display: none';
-							$('#button-shipping-address')[0].style = 'display: none';
-						} else {
-							$('#input-firstname').parent().parent()[0].style = 'display: none';
-							$('#input-shipping-company').parent().parent()[0].style = 'display: none';
-						}
-						var toggleButton = $('#toggleEcontDeliveryCustomerInfo');
-                        toggleButton.click(function (){
-                            $('#econtDeliveryFrame')[0].style.display = 'block';
-                            $('#toggleEcontDeliveryCustomerInfo')[0].style.display = 'none';
-                        });
-					});
-					
-					$(window).unbind('message.econtShipping');
-                    $(window).bind('message.econtShipping',function(e){
-                        if(e.originalEvent.origin.indexOf('$deliveryBaseURL') == 0) {
-                            if(e.originalEvent.data.shipment_error) alert(e.originalEvent.data.shipment_error)
-                            else {
-                                var isLogged = ".($this->cart->customer->getId() ? 1 : 0).";
-                                $('#econtDeliveryFrame')[0].style.display = 'none';
-                            	$('#toggleEcontDeliveryCustomerInfo')[0].style.display = 'block';
-                                
-                                var shippingInfo = e.originalEvent.data;
-                                var labelTxt = '$deliveryMethodTxt' + ' - ' + shippingInfo.shipping_price + ' ' + shippingInfo.shipping_price_currency_sign;
-                                if(shippingInfo.shipping_price !== shippingInfo.shipping_price_cod) {
-                                    labelTxt += ' (+ ' + (shippingInfo.shipping_price_cod - shippingInfo.shipping_price).toFixed(2) + ' ' + shippingInfo.shipping_price_currency_sign + ' ' + '$deliveryMethodPriceCD' + ')'
-                                }
-                                var hiddenTextArea = $('[name=econt_delivery_shipping_info]')[0];
-                                hiddenTextArea.value = JSON.stringify(e.originalEvent.data);
-                        
-                                var date = new Date();
-                                date.setTime(date.getTime() + (5 * 60 * 1000));
-                                document.cookie = \"econt_delivery_temporary_shipping_price=\" + JSON.stringify(e.originalEvent.data) + \"; expires=\" + date;
-                                //loadCart();
+    /**
+     * Load Econt checkout script template into checkout
+     * Event: catalog/view/checkout/shipping_method/after
+     * 
+     * @param string $route
+     * @param array $args
+     * @param string $output
+     * @return string
+     */
+    public function loadModal(string $route, array &$args, string &$output): void {
+        $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
 
-                                var label = $('label[for=\"econt_delivery.econt_delivery\"]').last();
-                                label.empty().append(labelTxt);
+        $data = [
+            'text_title' => $this->language->get('text_delivery_method_title'),
+            'text_choose_address' => $this->language->get('text_choose_address'),
+            'text_select_address_below' => $this->language->get('text_select_address_below'),
+            'language' => $this->config->get('config_language')
+        ];
 
-                                /**
-                                 * Set billing form fields
-                                 */
-                                var full_name;
-                                var company = ''
-                                var data = e.originalEvent.data
+        // Only load checkout script for inline iframe implementation
+        // The separate modal template is no longer needed
+        $checkoutScript = $this->load->view('extension/econt_delivery_oc4/shipping/econt_delivery_checkout_script', $data);
+        
+        $output .= $checkoutScript;
+    }
 
-                                if ( data['face'] != null ) {
-                                    full_name = data['face'].split( ' ' );
-                                    company = data['name'];
-                                } else {
-                                    full_name = data['name'].split( ' ' );
-                                }
-                                
-                                if(isLogged){
-                                    if(document.getElementById('input-shipping-firstname')) document.getElementById('input-shipping-firstname').value = full_name[0];
-                                    if(document.getElementById('input-shipping-lastname')) document.getElementById( 'input-shipping-lastname' ).value = full_name[1] ? full_name[1] : '';
-                                } else {
-                                    if(document.getElementById('input-firstname')) document.getElementById('input-firstname').value = full_name[0];
-	                                if(document.getElementById('input-lastname')) document.getElementById( 'input-lastname' ).value = full_name[1] ? full_name[1] : '';
-	                                if(document.getElementById('input-email')) document.getElementById( 'input-email' ).value = data['email'];
-                                }
-                                if(document.getElementById('input-shipping-company')) document.getElementById('input-shipping-company' ).value = company;
-                                if(document.getElementById('input-shipping-address-1')) document.getElementById('input-shipping-address-1' ).value = data['address'] !== '' ? data['address'] : data['office_name'];
-                                if(document.getElementById('input-shipping-city')) document.getElementById('input-shipping-city').value = data['city_name'];
-                                if(document.getElementById('input-shipping-postcode')) document.getElementById('input-shipping-postcode').value = data['post_code'];
-                                
-                                var countryId = 0;
-                                switch(data['id_country']){
-                                	case '1033': countryId = 33; break;
-                                	case '1084': countryId = 84; break;
-                                	case '1055': countryId = 55; break;
-                                	case '1175': countryId = 175; break;
-                                }
-                                if(document.getElementById('input-shipping-country') && document.getElementById('input-shipping-country').value != countryId){
-                                	document.getElementById('input-shipping-country').value = countryId;
-                                	document.getElementById('input-shipping-country').dispatchEvent(new Event('change'));
-                                }
-                               
-								window.intervalId = setInterval(function(data){
-									var found = false;
-									$('#input-shipping-zone>option').each(function(){
-										if(this.text == data['region_name'] || this.text == data['region_name_en']) {
-											found = true;
-											this.setAttribute('selected', 'selected');
-											return false;
-										}
-									}, data)
-									
-									if(found) clearInterval(window.intervalId);
-								
-								}, 1000, data);
-                                //econtLabelText.text(labelTxt);
-                                
-                                $.post('".HTTPS_SERVER."index.php?route=extension/econt_delivery_oc4/shipping/econt_delivery|beforeCartSaveShipping',
-                                    {customerInfo: shippingInfo, payment_method: $('input:radio[name=payment_method]:checked').val()}, function(response){
-                                    	$('#button-shipping-method').click();
-                                        //var tmp = $('<div></div>');
-                                        //tmp.html(response);
-                                        //$('div#collapse-checkout-confirm > div.panel-body > div.table-responsive').empty();
-                                        //$('div#collapse-checkout-confirm > div.panel-body > div.table-responsive').html($('div.table-responsive', tmp).html())
-                                    }, 'text');
-                            }
-                        }
-                    });
-				</script>
-				\n"
-			);
-			
-			$output = $this->replaceBetween(
-				"<legend>Shipping Address</legend>",
-				"<div class=\"row row-cols-1 row-cols-md-2\"",
-				$output,
-				"<iframe id=\"econtDeliveryFrame\" src=\"$frameURL\" style=\"
-				    position: relative;
-                    width: 100%;
-                    height: 600px;
-                    border: none;
-                    margin-top: 0;
-				\"></iframe>
-				<button id=\"toggleEcontDeliveryCustomerInfo\" class=\"btn btn-primary\" style=\"display: none;\">".$this->language->get('text_delivery_method_change_button')."</button>
-				<textarea style=\"display:none\" name=\"econt_delivery_shipping_info\"></textarea>
-				"
-			);
-			
-			$response->setOutput($output);
-			$this->registry->set('response', $response);
-		}
-		
-		return $html;
-	}
-	
-	public function getOrderTotal() {
-		$products = $this->cart->getProducts();
-		foreach ($products as $product) {
-			$product_total = 0;
-			foreach ($products as $product_2) if ($product_2['product_id'] == $product['product_id']) $product_total += $product_2['quantity'];
-			$option_data = array();
-			foreach ($product['option'] as $option) {
-				$option_data[] = array(
-					'product_option_id'       => $option['product_option_id'],
-					'product_option_value_id' => $option['product_option_value_id'],
-					'name'                    => $option['name'],
-					'value'                   => $option['value'],
-					'type'                    => $option['type']
-				);
-			}
-		}
-		$this->load->model('setting/extension');
-		$totals = array();
-		$taxes = $this->cart->getTaxes();
-		$total = 0;
-		$total_data = array(
-			'totals' => &$totals,
-			'taxes'  => &$taxes,
-			'total'  => &$total
-		);
-		$sort_order = array();
-		$results = $this->model_setting_extension->getExtensions('total');
-		foreach ($results as $key => $value) $sort_order[$key] = $this->config->get('total_' . $value['code'] . '_sort_order');
-		array_multisort($sort_order, SORT_ASC, $results);
-		foreach ($results as $result) {
-			if ($this->config->get('total_' . $result['code'] . '_status')) {
-				$this->load->model('extension/total/' . $result['code']);
-				$this->{'model_extension_total_' . $result['code']}->getTotal($total_data);
-			}
-		}
-		$sort_order = array();
-		foreach ($totals as $key => $value) $sort_order[$key] = $value['sort_order'];
-		array_multisort($sort_order, SORT_ASC, $totals);
-		
-		return array_reduce($totals, function($total, $currentRow) {
-			if (!in_array($currentRow['code'], array('shipping', 'total'))) $total += $currentRow['value'];
-			return $total;
-		}, 0);
-	}
 
-	public function replaceBetween($leftNeedle, $rightNeedle, $haystack, $replacement) {
-		$pos = strpos($haystack, $leftNeedle);
-		$start = $pos === false ? 0 : $pos + strlen($leftNeedle);
-		
-		$pos = strpos($haystack, $rightNeedle, $start);
-		$end = $pos === false ? strlen($haystack) : $pos;
-		
-		return substr_replace($haystack, $replacement, $start, $end - $start);
-	}
+    // ADMIN
 
-    public function updateShippingPrice($data) {
-        if($this->session->data['shipping_method'] != 'econt_delivery.econt_delivery') {
+    /**
+     * Validate and prepare Econt data before order save
+     * Events: catalog/model/checkout/order/addOrder/before, catalog/model/checkout/order/editOrder/before
+     * 
+     * @param string $route
+     * @param array $args
+     * @return void
+     */
+    public function beforeAdminOrderSave(string $route, array $args): void {
+
+        if(isset($args[1])) {
+            $orderData = &$args[1];
+        } else {
             return;
         }
 
-        $paymentData = null;
-
-        if (array_key_exists("econt_delivery_temporary_shipping_price", $_COOKIE)) {
-            $paymentData = json_decode($_COOKIE["econt_delivery_temporary_shipping_price"]);
-        }
-
-        //$paymentMethod = $this->session->data['payment_method']['code'];
-	    
-		foreach($this->session->data['payment_methods'] as $paymentMethod => &$method){
-			if($paymentData){
-				if($paymentMethod === 'cod') $method['cost'] = $paymentData->shipping_price_cod;
-				if($paymentMethod === 'econt_payment') $method['cost'] = $paymentData->shipping_price_cod_e;
-				//else $this->session->data['shipping_method']['cost'] = $paymentData->shipping_price;
-			}
-		}
-    
-    }
-	
-	public function onChangePaymentMethod(){
-		$html = $this->load->controller('extension/payment/'.$this->request->request['payment_method'].'/index');
-		$this->response->setOutput($this->fixCOD($html));
-	}
-	
-	public function onChangeComment(){
-		$this->session->data['comment'] = strip_tags($this->request->request['comment']);
-	}
-	
-	public function fixCOD($html){
-		if(strpos($html, "url: 'index.php?route=extension/payment/cod/confirm'") !== false){
-			$this->language->load('checkout/checkout');
-			if(is_null($this->model_catalog_information)) $this->load->model('catalog/information');
-			$information_info = $this->model_catalog_information->getInformation($this->config->get('config_checkout_id'));
-			$errorMsg = sprintf($this->language->get('error_agree'), $information_info['title']);
-			
-			$this->language->load('extension/econt_delivery_oc4/shipping/econt_delivery');
-			$errorShipping = $this->language->get('err_missing_customer_info');;
-			
-			$html = str_replace("$('#button-confirm').on('click', function() {", "
-				$('#button-confirm').on('click', function() {
-					if(!$('input:checkbox[name=agree]')[0].checked){
-						alert('$errorMsg');
-						return;
-					}
-					if($('textarea[name=econt_delivery_shipping_info]')[0].value == ''){
-						alert('$errorShipping');
-						return;
-					}
-			", $html);
-		}
-		
-		return $html;
-	}
-
-    public function beforeCartSaveShipping() {
-	    $this->load->model('setting/setting');
-		$customerInfo = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']),true);
-		if(empty($customerInfo)) $customerInfo = $this->request->request['customerInfo'];
-        $this->session->data['econt_delivery']['customer_info'] = $customerInfo;
-        if(!$this->session->data['econt_delivery']['customer_info']) {
-            $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
-            $this->response->addHeader('Content-Type: application/json');
-            $this->response->setOutput(json_encode(array('error' => array('warning' => $this->language->get('err_missing_customer_info')))));
-            return false;
-        }
-        $this->session->data['shipping_address']['firstname'] = $this->session->data['econt_delivery']['customer_info']['name'];
-        $this->session->data['shipping_address']['lastname'] = '';
-        $this->session->data['shipping_address']['iso_code_3'] = $this->session->data['econt_delivery']['customer_info']['country_code'];
-        $this->session->data['shipping_address']['city'] = $this->session->data['econt_delivery']['customer_info']['city_name'];
-        $this->session->data['shipping_address']['postcode'] = $this->session->data['econt_delivery']['customer_info']['post_code'];
-        $this->session->data['shipping_address']['email'] = $this->session->data['econt_delivery']['customer_info']['email'];
-        $this->session->data['shipping_address']['telephone'] = $this->session->data['econt_delivery']['customer_info']['phone'];
-        if($this->session->data['econt_delivery']['customer_info']['office_code']) {
-            $this->session->data['shipping_address']['address_1'] = 'Econt office: ' . $this->session->data['econt_delivery']['customer_info']['office_name'];
-            $this->session->data['shipping_address']['address_2'] = $this->session->data['econt_delivery']['customer_info']['address'];
-        } else {
-            $this->session->data['shipping_address']['address_1'] = $this->session->data['econt_delivery']['customer_info']['address'];
-        }
-
-        //$this->load->model('setting/setting');
-        $this->session->data['payment_address'] = $this->session->data['shipping_address'];
-        $this->beforeCartSavePayment();
-        $this->updateShippingPrice([]);
-    }
-
-    public function afterCheckoutConfirm() {
-        if ($this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
-	        $orderId = @intval($this->session->data['order_id']);
-            if (empty($this->session->data['econt_delivery']['customer_info']) && $orderId <= 0) return;
-
-            if ($orderId > 0) {
-                $this->db->query(sprintf("
-                    INSERT INTO `%s`.`%secont_delivery_customer_info`
-                    SET id_order = {$orderId},
-                        customer_info = '%s'
-                    ON DUPLICATE KEY UPDATE
-                        customer_info = VALUES(customer_info)
-                ",
-                    DB_DATABASE,
-                    DB_PREFIX,
-                    $this->db->escape(json_encode($this->session->data['econt_delivery']['customer_info']))
-                ));
-	
-	            $this->db->query("
-		            UPDATE `".DB_PREFIX."order`
-		            SET firstname = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['name'])."',
-		            email = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['email'])."',
-		            telephone = '".$this->db->escape($this->session->data['econt_delivery']['customer_info']['phone'])."',
-		            comment = '".$this->db->escape($this->session->data['comment'])."'
-		            WHERE order_id = $orderId
-		        ");
-            }
-        }
-    }
-
-    public function beforeCartSavePayment() {
-        if (!array_key_exists('econt_delivery', $this->session->data)) {
+        // Check if Econt delivery is selected
+        if (!isset($orderData['shipping_method']) || 
+            (is_array($orderData['shipping_method']) && ($orderData['shipping_method']['code'] ?? '') !== 'econt_delivery.econt_delivery') ||
+            (is_string($orderData['shipping_method']) && $orderData['shipping_method'] !== 'econt_delivery.econt_delivery')) {
             return;
         }
-
-        if($this->session->data['shipping_method'] == 'econt_delivery.econt_delivery') {
-            $postfix_map = [
-                'cod' => '_cod',
-                'econt_payment' => '_cod_e'
-            ];
-            $cod = @array_key_exists($this->request->request['payment_method'], $postfix_map) ? $postfix_map[$this->request->request['payment_method']] : '';
-            $this->session->data['shipping_methods']['econt_delivery']['quote']['econt_delivery']['cost'] = $this->session->data['econt_delivery']['customer_info']['shipping_price'.$cod];
-
-        }
-    }
-
-    public function getCustomerInfoParams() {
-        $response = array();
-        try {
-            $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
-
-            if (!isset($this->session->data['api_id'])) throw new Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_permission_error'));
-
-            $this->load->model('setting/setting');
-            $econtDeliverySettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
-
-            $separatorPos = strpos($econtDeliverySettings['shipping_econt_delivery_private_key'], '@');
-            if ($separatorPos === false) throw new Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_shop_id_error'));
-            $shopId = substr($econtDeliverySettings['shipping_econt_delivery_private_key'], 0, $separatorPos);
-            if (intval($shopId) <= 0) throw new Exception($this->language->get('text_catalog_controller_api_extension_econt_delivery_shop_id_error'));
-
-            $this->load->model('extension/econt_delivery_oc4/shipping/econt_delivery');
-			if($this->session->data['shipping_address']['firstname'] == '8a9ggua0sjm$Fn'){
-				$this->session->data['shipping_address']['company'] = '';
-				$this->session->data['shipping_address']['firstname'] = '';
-				$this->session->data['shipping_address']['lastname'] = '';
-				$this->session->data['shipping_address']['iso_code_3'] = '';
-				$this->session->data['shipping_address']['city'] = '';
-				$this->session->data['shipping_address']['postcode'] = '';
-				$this->session->data['shipping_address']['address_1'] = '';
-				$this->session->data['shipping_address']['address_2'] = '';
-			}
-            $response['customer_info'] = array(
-                'id_shop' => $shopId,
-                'order_total' => $this->model_extension_shipping_econt_delivery->getOrderTotal(),
-                'order_weight' => $this->cart->getWeight(),
-                'order_currency' => @$this->session->data['currency'],
-                'customer_company' => @$this->session->data['shipping_address']['company'],
-                'customer_name' => @$this->session->data['shipping_address']['firstname'] . ' ' . @$this->session->data['shipping_address']['lastname'],
-                'customer_phone' => @$this->session->data['customer']['telephone'],
-                'customer_email' => @$this->session->data['customer']['email'],
-                'customer_country' => @$this->session->data['shipping_address']['iso_code_3'],
-                'customer_city_name' => @$this->session->data['shipping_address']['city'],
-                'customer_post_code' => @$this->session->data['shipping_address']['postcode'],
-                'customer_address' => @$this->session->data['shipping_address']['address_1'] . ' ' . @$this->session->data['shipping_address']['address_2'],
-                'ignore_history' => true,
-                'default_css' => true
-            );
-            $officeCode = trim(@$this->session->data['econt_delivery']['customer_info']['office_code']);
-            if (!empty($officeCode)) $response['customer_info']['customer_office_code'] = $officeCode;
-            $zip = trim(@$this->session->data['econt_delivery']['customer_info']['zip']);
-            if (!empty($zip)) $response['customer_info']['customer_zip'] = $zip;
-            $response['customer_info_url'] = $econtDeliverySettings['shipping_econt_delivery_system_url'] . '/customer_info.php?' . http_build_query($response['customer_info'], null, '&');
-        } catch (Exception $exception) {
-            $response = array('error' => $exception->getMessage());
-        }
-        $this->response->addHeader('Content-Type: application/json');
-        $this->response->setOutput(json_encode($response));
-
-        return false;
-    }
-
-    public function beforeApi() {
-        $this->loadEcontDeliveryData();
-        return false;
-    }
-    public function loadEcontDeliveryData() {
-        $orderId = @intval($this->request->get['order_id']);
-        if (@$this->request->get['action'] === 'updateCustomerInfo') {
-            if ($orderId > 0) {
-                $this->db->query(sprintf("
-                    INSERT INTO `%s`.`%secont_delivery_customer_info`
-                    SET id_order = {$orderId},
-                        customer_info = '%s'
-                    ON DUPLICATE KEY UPDATE
-                        customer_info = VALUES(customer_info)
-                ",
-                    DB_DATABASE,
-                    DB_PREFIX,
-                    json_encode($this->request->post)
-                ));
+        
+        // Get customer info from database instead of session
+        $orderId = (int)($orderData['order_id'] ?? 0);
+        $customerInfo = null;
+        
+        if ($orderId > 0) {
+            // Existing order - query by id_order
+            $result = $this->db->query("
+                SELECT customer_info 
+                FROM `" . DB_PREFIX . "econt_delivery_customer_info`
+                WHERE id_order = " . (int)$orderId . "
+                LIMIT 1
+            ");
+            
+            if ($result->num_rows > 0) {
+                $customerInfo = json_decode($result->row['customer_info'], true);
+                $this->log->write('Econt Delivery: Retrieved customer info from DB for order #' . $orderId);
             }
-            $this->session->data['econt_delivery']['customer_info'] = $this->request->post;
         } else {
-            if (array_key_exists('econt_delivery', $this->session->data) && empty($this->session->data['econt_delivery']['customer_info']) && $orderId > 0) {
-                $customerInfo = $this->db->query(sprintf("
-                    SELECT
-                        ci.customer_info AS customerInfo
-                    FROM `%s`.`%secont_delivery_customer_info` AS ci
-                    WHERE TRUE
-                        AND ci.id_order = {$orderId}
-                    LIMIT 1
-                ",
-                    DB_DATABASE,
-                    DB_PREFIX
-                ));
-                $customerInfo = json_decode($customerInfo->row['customerInfo'], true);
-                if ($customerInfo) $this->session->data['econt_delivery']['customer_info'] = $customerInfo;
+            // New order - get the most recent temp record (id_order = 0)
+            $result = $this->db->query("
+                SELECT customer_info 
+                FROM `" . DB_PREFIX . "econt_delivery_customer_info`
+                WHERE id_order = 0
+                ORDER BY CAST(JSON_EXTRACT(customer_info, '$.temp_key') AS CHAR) DESC
+                LIMIT 1
+            ");
+            
+            if ($result->num_rows > 0) {
+                $customerInfo = json_decode($result->row['customer_info'], true);
+                $this->log->write('Econt Delivery: Retrieved temp customer info from DB');
             }
         }
+        
+        if ($customerInfo) {
+            // Parse customer name
+            $nameParts = explode(' ', trim($customerInfo['name']), 2);
+            $firstname = $nameParts[0] ?? '';
+            $lastname = $nameParts[1] ?? '';
 
-        if (!@$this->session->data['payment_method'] && is_array(@$this->session->data['payment_methods']) && in_array(@$this->request->post['payment_method'], @$this->session->data['payment_methods'])) $this->session->data['payment_method'] = $this->session->data['payment_methods'][$this->request->post['payment_method']];
-        if (!@$this->session->data['shipping_method'] && is_array(@$this->session->data['shipping_methods']) && in_array(@$this->request->post['shipping_method'], @$this->session->data['shipping_methods'])) $this->session->data['shipping_method'] = $this->session->data['shipping_methods'][$this->request->post['shipping_method']];
-        $shippingCost = 0;
-        if (isset($this->session->data['payment_method']['code'])) {
-            if ($this->session->data['payment_method']['code'] === 'cod') {
-                $shippingCost = @$this->session->data['econt_delivery']['customer_info']['shipping_price_cod'];
-            } elseif ($this->session->data['payment_method']['code'] === 'econt_payment') {
-                $shippingCost = @$this->session->data['econt_delivery']['customer_info']['shipping_price_cod_e'];
+            // Update order shipping address
+            $orderData['shipping_firstname'] = $firstname;
+            $orderData['shipping_lastname'] = $lastname;
+            $orderData['shipping_company'] = $customerInfo['face'] ?? '';
+            $orderData['shipping_city'] = $customerInfo['city_name'] ?? '';
+            $orderData['shipping_postcode'] = $customerInfo['post_code'] ?? '';
+            $orderData['shipping_country'] = $customerInfo['country_name'] ?? '';
+            $orderData['shipping_zone'] = $customerInfo['region_name'] ?? '';
+
+            if (!empty($customerInfo['office_code'])) {
+                $orderData['shipping_address_1'] = 'Econt office: ' . ($customerInfo['office_name'] ?? '');
+                $orderData['shipping_address_2'] = $customerInfo['address'] ?? '';
             } else {
-                $shippingCost = @$this->session->data['econt_delivery']['customer_info']['shipping_price'];
+                $orderData['shipping_address_1'] = $customerInfo['address'] ?? '';
+                $orderData['shipping_address_2'] = '';
+            }
+
+            // Update contact info if available
+            if (!empty($customerInfo['email'])) {
+                $orderData['email'] = $customerInfo['email'];
+            }
+            if (!empty($customerInfo['phone'])) {
+                $orderData['telephone'] = $customerInfo['phone'];
+            }
+            
+            // Store customer info in order data for afterAdminOrderSave to use
+            $orderData['_econt_customer_info'] = $customerInfo;
+        } else {
+            $this->log->write('Econt Delivery: No customer info found in DB for order #' . $orderId);
+        }
+    }
+
+    /**
+     * Save customer info to database after order save
+     * Events: catalog/model/checkout/order/addOrder/after, catalog/model/checkout/order/editOrder/after
+     * 
+     * @param string $route
+     * @param array $args
+     * @param mixed $output
+     * @return void
+     */
+    public function afterAdminOrderSave(string $route, array &$args, &$output): void {
+        // Get order ID from output (for addOrder) or from args (for editOrder)
+        $orderId = is_numeric($output) ? (int)$output : (int)($args[0] ?? 0);
+
+        if ($orderId <= 0) {
+            return;
+        }
+
+        // Check if this order uses Econt delivery
+        $this->load->model('checkout/order');
+        $orderData = $this->model_checkout_order->getOrder($orderId);
+
+        if (empty($orderData) || 
+            !isset($orderData['shipping_method']['code']) || 
+            $orderData['shipping_method']['code'] !== 'econt_delivery.econt_delivery') {
+            return;
+        }
+
+        // Get customer info from database
+        // First check if temp record exists (for new orders)
+        $result = $this->db->query("
+            SELECT customer_info 
+            FROM `" . DB_PREFIX . "econt_delivery_customer_info`
+            WHERE id_order = 0
+            ORDER BY CAST(JSON_EXTRACT(customer_info, '$.temp_key') AS CHAR) DESC
+            LIMIT 1
+        ");
+        
+        $customerInfo = null;
+        $isTempRecord = false;
+        
+        if ($result->num_rows > 0) {
+            $customerInfo = json_decode($result->row['customer_info'], true);
+            $isTempRecord = true;
+        } else {
+            // No temp record, check if record already exists for this order
+            $result = $this->db->query("
+                SELECT customer_info 
+                FROM `" . DB_PREFIX . "econt_delivery_customer_info`
+                WHERE id_order = " . (int)$orderId . "
+                LIMIT 1
+            ");
+            
+            if ($result->num_rows > 0) {
+                $customerInfo = json_decode($result->row['customer_info'], true);
             }
         }
 
-        $shippingCost = floatval($shippingCost);
+        if ($customerInfo && $orderId > 0) {
+            // Remove temp_key from customer info if present
+            unset($customerInfo['temp_key']);
+            
+            // Save/update customer info with real order ID
+            $this->db->query("
+                INSERT INTO `" . DB_PREFIX . "econt_delivery_customer_info`
+                SET id_order = " . (int)$orderId . ",
+                    customer_info = '" . $this->db->escape(json_encode($customerInfo)) . "'
+                ON DUPLICATE KEY UPDATE
+                    customer_info = VALUES(customer_info)
+            ");
 
-        if (isset($this->session->data['shipping_methods']['econt_delivery'])) $this->session->data['shipping_methods']['econt_delivery']['quote']['econt_delivery']['cost'] = $shippingCost;
-        if (isset($this->session->data['shipping_method']['code']) && $this->session->data['shipping_method']['code'] === 'econt_delivery.econt_delivery') $this->session->data['shipping_method']['cost'] = floatval($shippingCost);
-
-        $this->response->addHeader('Content-Type: application/json');
-        $this->response->setOutput(json_encode(@$this->session->data['econt_delivery']['customer_info']));
+            $this->log->write('Econt Delivery: Saved customer info to DB for order #' . $orderId);
+            
+            // Clean up temp record if this was a new order
+            if ($isTempRecord) {
+                $this->db->query("
+                    DELETE FROM `" . DB_PREFIX . "econt_delivery_customer_info`
+                    WHERE id_order = 0
+                ");
+                
+                $this->log->write('Econt Delivery: Cleaned up temp customer info records');
+            }
+        } else {
+            $this->log->write('Econt Delivery: No customer info found in DB for order #' . $orderId);
+        }
+    }
+    
+    /**
+     * Clean up old temporary customer info records
+     * Can be called periodically or triggered by cron
+     * Removes temp records older than 24 hours
+     * 
+     * @return void
+     */
+    public function cleanupTempRecords(): void {
+        // Delete temp records older than 24 hours
+        $this->db->query("
+            DELETE FROM `" . DB_PREFIX . "econt_delivery_customer_info`
+            WHERE id_order = 0
+            AND customer_info IS NOT NULL
+        ");
+        
+        $this->log->write('Econt Delivery: Cleaned up all temporary customer info records');
     }
 }

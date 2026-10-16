@@ -20,6 +20,7 @@ $_['text_edit_customer_info'] = 'Редактирай данните за дос
 $_['text_default_error_message'] = 'Възникна грешка моля свържете се с администратор';
 $_['text_empty_customer_info_url'] = 'Навалиден URL за Достави с Еконт';
 $_['text_shipping_via_econt'] = 'Доставка чрез Еконт';
+$_['error_private_key'] = 'Кодът за свързване е задължителен';
 $_['text_trace_shipping'] = 'проследи пратка';
 $_['text_invalid_order_id'] = 'Невалидно ID на поръчка';
 $_['text_invalid_shipping_method'] = 'Невалидно ID на поръчка';
@@ -29,3 +30,13 @@ $_['text_checkout_mode_onestep'] = 'В една стъпка';
 
 $_['text_order_list_econt_shipping_column_label'] = 'Товарителница Еконт';
 $_['text_order_list_econt_shipping_column_prepare_loading'] = 'Изпрати';
+
+// Admin order form integration
+$_['text_delivery_method_title'] = 'Достави с Еконт';
+$_['text_choose_address'] = 'Моля, изберете адрес за доставка...';
+$_['text_select_address_below'] = 'Моля, изберете адрес за доставка по-долу:';
+$_['error_configuration'] = 'Еконт доставката не е правилно конфигурирана. Моля, свържете се с администратора.';
+$_['err_missing_customer_info'] = 'Моля, изберете адрес за доставка от опциите на Еконт!';
+$_['text_catalog_controller_api_extension_econt_delivery_shop_id_error'] = 'Възникана грешка при извличане на "Код за сигурност" от настройките на модула';
+$_['text_econt_delivery_order'] = 'Поръчка';
+$_['text_econt_delivery_order_discount'] = 'Oтстъпка';
