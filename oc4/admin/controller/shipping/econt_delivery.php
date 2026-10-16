@@ -195,8 +195,16 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
 			    'status'      => 1,
 			    'sort_order'  => 1
 		    ],
+		    [
+			    'code'        => 'econt_delivery_oc4',
+			    'description' => 'Econt Delivery - Notify about a new module version (admin)',
+			    'trigger'     => 'admin/view/common/header/after',
+			    'action'      => 'extension/econt_delivery_oc4/shipping/econt_delivery.adminCheckVersion',
+			    'status'      => 1,
+			    'sort_order'  => 1
+		    ],
 	    ];
-	    
+
 	    foreach($events as $event) {
 	        $this->model_setting_event->addEvent($event);
 	    }
@@ -205,6 +213,65 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         $this->load->model('setting/event');
 
         $this->model_setting_event->deleteEventByCode('econt_delivery_oc4');
+    }
+
+    /**
+     * Event admin/view/common/header/after: известие в админа, ако в GitHub има по-нова версия на модула.
+     * Инсталираната версия е от oc_extension_install (install.json от zip-а, качен през Extensions → Installer).
+     */
+    public function adminCheckVersion(string &$route, array &$args, string &$output): void {
+        if (!$this->config->get('shipping_econt_delivery_status') || empty($this->session->data['user_token'])) {
+            return;
+        }
+
+        $this->load->model('setting/extension');
+        $install = $this->model_setting_extension->getInstallByCode('econt_delivery_oc4');
+        $currentVersion = $install['version'] ?? '';
+
+        // Веднъж на сесия, включително когато GitHub не отговори, за да не се бави всяка страница
+        if (!isset($this->session->data['econt_delivery_latest_version'])) {
+            $this->session->data['econt_delivery_latest_version'] = $this->getLatestReleaseVersion();
+        }
+        $latestVersion = $this->session->data['econt_delivery_latest_version'];
+
+        if ($currentVersion === '' || $latestVersion === '' || !version_compare($latestVersion, $currentVersion, '>')) {
+            return;
+        }
+
+        $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery', 'econt_delivery');
+        $notification = $this->load->view('extension/econt_delivery_oc4/shipping/econt_delivery_version_notification', [
+            'text_version_notification' => sprintf($this->language->get('econt_delivery_text_version_notification'), $currentVersion, $latestVersion),
+            'button_version_download' => $this->language->get('econt_delivery_button_version_download'),
+            'button_version_instructions' => $this->language->get('econt_delivery_button_version_instructions'),
+            'download_url' => 'https://github.com/econt/opencart-extension/releases/latest/download/econt_delivery_oc4.ocmod.zip',
+            'instructions_url' => 'https://github.com/econt/opencart-extension/wiki/Installation'
+        ]);
+
+        $output = str_replace('</header>', '</header>' . $notification, $output);
+    }
+
+    /**
+     * Версията от tag-а на последния release (vX.Y.Z), общ за OC3 и OC4. '' при грешка.
+     */
+    private function getLatestReleaseVersion(): string {
+        $ch = curl_init('https://api.github.com/repos/econt/opencart-extension/releases/latest');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT => 5,
+            CURLOPT_HTTPHEADER => ['Accept: application/vnd.github+json'],
+            CURLOPT_USERAGENT => 'econt-opencart-extension' // GitHub API изисква User-Agent
+        ]);
+        $response = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $release = $status == 200 ? json_decode((string)$response, true) : null;
+        if (!is_array($release) || !preg_match('/^v?(\d+\.\d+\.\d+)$/', $release['tag_name'] ?? '', $match)) {
+            return '';
+        }
+
+        return $match[1];
     }
 
     public function index() {

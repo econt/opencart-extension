@@ -40,3 +40,6 @@ $_['err_missing_customer_info'] = 'Моля, изберете адрес за д
 $_['text_catalog_controller_api_extension_econt_delivery_shop_id_error'] = 'Възникана грешка при извличане на "Код за сигурност" от настройките на модула';
 $_['text_econt_delivery_order'] = 'Поръчка';
 $_['text_econt_delivery_order_discount'] = 'Oтстъпка';
+$_['text_version_notification'] = 'Текущата версия на модула "Econt payment and delivery" е <strong>%s</strong>. Има по-нова версия: <strong>%s</strong>. Препоръчваме да я изтеглите и инсталирате по инструкциите.';
+$_['button_version_download'] = 'Изтегляне';
+$_['button_version_instructions'] = 'Инструкции';

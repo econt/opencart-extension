@@ -40,3 +40,6 @@ $_['err_missing_customer_info'] = 'Please select your delivery address from Econ
 $_['text_catalog_controller_api_extension_econt_delivery_shop_id_error'] = 'Error. Invalid security code!';
 $_['text_econt_delivery_order'] = 'Order';
 $_['text_econt_delivery_order_discount'] = 'Discount';
+$_['text_version_notification'] = 'The installed version of "Econt payment and delivery" is <strong>%s</strong>. A newer version is available: <strong>%s</strong>. We recommend downloading and installing it by following the instructions.';
+$_['button_version_download'] = 'Download';
+$_['button_version_instructions'] = 'Instructions';
