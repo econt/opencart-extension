@@ -7,7 +7,10 @@
 
 🔹 [Кликнете тук](https://static-content.econt.com/cms/integrations-delivery/modules/econt_delivery.ocmod.zip) за да изтеглите версията на модула **Econt Delivery за OpenCart 3.0+**
 
-🔹 [Кликнете тук](https://static-content.econt.com/cms/integrations/modules/30/econt_delivery_oc4.ocmod.zip) за да изтеглите версията на модула **Econt Delivery за OpenCart 4.0+**
+🔹 [Кликнете тук](https://github.com/econt/opencart-extension/releases/latest/download/econt_delivery_oc4.ocmod.zip) за да изтеглите версията на модула **Econt Delivery за OpenCart 4.0+**
+
+Двата пакета са с обща версия и са в един и същ [release](https://github.com/econt/opencart-extension/releases/latest).
+Изтеглете пакета за вашата версия на OpenCart: пакетът за OpenCart 3 не работи на OpenCart 4 и обратно.
 
 ## 🛠️ Инсталиране и конфигуриране на модул версия 3.0+
 
@@ -51,6 +54,33 @@
 ## 🎉 Готово!
 
 ✅ Успешно инсталирахте модула Deliver with Econt на уебсайта OpenCart.
+
+---
+
+## 🛠️ Инсталиране и конфигуриране на модул версия 4.0+
+
+Стъпки 1–3 са същите като за версия 3.0+. Вместо `econt_delivery.ocmod.zip` изтеглете `econt_delivery_oc4.ocmod.zip`.
+
+### 🔹 Стъпка 4
+- Отворете Разширения → Инсталатор (Extensions → Installer) и качете `econt_delivery_oc4.ocmod.zip`.
+  Името на файла трябва да е точно това: OpenCart 4 взима от него името на разширението. Ако браузърът е
+  преименувал файла (например `econt_delivery_oc4 (1).ocmod.zip`), върнете му името преди качването.
+- В списъка с качени разширения намерете **Econt payment and delivery** и натиснете зеления бутон Инсталирай.
+
+### 🔹 Стъпка 5
+- Отидете в Разширения → Разширения и изберете Доставка (Shipping). Намерете Econt Delivery, натиснете Инсталирай,
+  след това Редактирай. Настройките са същите като в стъпка 5 за версия 3.0+.
+
+### 🔹 Стъпка 6
+- Валутата и наложеният платеж се настройват както в стъпки 6 и 7 за версия 3.0+.
+
+### 🔄 Обновяване на версия 4.0+
+OpenCart 4 не качва разширение, което вече е инсталирано. Затова преди новата версия:
+
+1. Разширения → Разширения → Доставка: Econt Delivery → Деинсталирай. Настройките на модула се изтриват, затова
+   запишете кода за връзка преди това.
+2. Разширения → Инсталатор: Econt payment and delivery → Деинсталирай, после Изтрий.
+3. Качете и инсталирайте новия `econt_delivery_oc4.ocmod.zip` по стъпки 4 и 5.
 
 ---
 
