@@ -1,0 +1,36 @@
+{% if econtPaymentError %}
+    <div class="alert alert-danger alert-dismissible">
+        <i class="fa fa-exclamation-circle"></i>&nbsp;{{ econtPaymentError }}
+    </div>
+{% else %}
+    <div class="buttons">
+        <div class="pull-right">
+            <input type="button" value="{{ button_confirm }}" id="button-confirm-econt-payment" data-loading-text="{{ button_confirm_loading }}" class="btn btn-primary">
+        </div>
+    </div>
+    <script>
+        $('#button-confirm-econt-payment').on('click', function() {
+            if($('textarea[name=econt_delivery_shipping_info]').val() == ''){
+                alert('{{ shippingError }}');
+                return;
+            }
+
+            $.ajax({
+                url: 'index.php?route=extension/econt_delivery_oc4/payment/econt_payment|confirm',
+                beforeSend: function() {
+                    $('#button-confirm-econt-payment').button('loading');
+                },
+                complete: function() {
+                    $('#button-confirm-econt-payment').button('reset');
+                },
+                success: function(responseJSON) {
+                    if (responseJSON['redirect']) document.location = responseJSON['redirect'];
+                    else alert((responseJSON['error'] ? responseJSON['error'] : 'Payment Error'));
+                },
+                error: function(XHR, AJAXOptions, thrownError) {
+                    alert(thrownError + "\r\n" + XHR.statusText + "\r\n" + XHR.responseText);
+                }
+            });
+        });
+    </script>
+{% endif %}

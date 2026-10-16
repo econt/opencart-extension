@@ -1,0 +1,5 @@
+# В репото текстовите файлове са с LF (OC4 0.9.8 идва с CRLF)
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.zip binary
