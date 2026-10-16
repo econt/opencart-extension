@@ -74,10 +74,15 @@
             }
             
             var data = event.data;
-            if (!data) {
+            // The browser (e.g. Chrome or the Google app on iOS) may post its own messages from the Econt frame.
+            // Accept only an error or a result from the Econt customer info form.
+            if (!data || typeof data !== 'object') {
                 return;
             }
-            
+            if (!data.shipment_error && !(data.name && data.phone)) {
+                return;
+            }
+
             // Handle error from iframe
             if (data.shipment_error) {
                 alert(data.shipment_error);
