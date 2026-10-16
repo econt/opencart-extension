@@ -82,7 +82,10 @@
             if (event['originalEvent']['origin'] != window.econtDelivery.systemUrl) return;
 
             var messageData = event['originalEvent']['data'];
-            if (!messageData) return;
+            // The browser (e.g. Chrome or the Google app on iOS) may post its own messages from the Econt frame.
+            // Accept only an error or a result from the Econt customer info form.
+            if (!messageData || typeof messageData !== 'object') return;
+            if (!messageData['shipment_error'] && !(messageData['name'] && messageData['phone'])) return;
 
             var withShippingError = false;
             if (!window.econtDelivery.empty(messageData['shipment_error'])) {
