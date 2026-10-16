@@ -1,7 +1,6 @@
-*
-!/.gitignore
-!econt_delivery*
-!/wiki/
-!/wiki/**
-!econt_payment*
-!README.md
+# Изходът на build.php
+/dist/
+*.ocmod.zip
+
+.idea/
+.DS_Store
