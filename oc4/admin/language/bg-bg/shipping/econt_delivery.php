@@ -43,3 +43,4 @@ $_['text_econt_delivery_order_discount'] = 'Oтстъпка';
 $_['text_version_notification'] = 'Текущата версия на модула "Econt payment and delivery" е <strong>%s</strong>. Има по-нова версия: <strong>%s</strong>. Препоръчваме да я изтеглите и инсталирате по инструкциите.';
 $_['button_version_download'] = 'Изтегляне';
 $_['button_version_instructions'] = 'Инструкции';
+$_['error_permission'] = 'Нямате права да променяте модула "Достави с Еконт".';

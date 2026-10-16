@@ -43,3 +43,4 @@ $_['text_econt_delivery_order_discount'] = 'Discount';
 $_['text_version_notification'] = 'The installed version of "Econt payment and delivery" is <strong>%s</strong>. A newer version is available: <strong>%s</strong>. We recommend downloading and installing it by following the instructions.';
 $_['button_version_download'] = 'Download';
 $_['button_version_instructions'] = 'Instructions';
+$_['error_permission'] = 'Warning: You do not have permission to modify Econt Delivery!';

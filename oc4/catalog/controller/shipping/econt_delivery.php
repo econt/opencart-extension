@@ -100,8 +100,8 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
 
             $customerInfo = $this->request->post;
 
-            // Validate required fields
-            if (empty($customerInfo['id']) || empty($customerInfo['name'])) {
+            // Only a result from the Econt form
+            if (!$this->isValidCustomerInfo($customerInfo)) {
                 throw new \Exception($this->language->get('err_missing_customer_info'));
             }
 
@@ -123,6 +123,19 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
 
         $this->response->addHeader('Content-Type: application/json');
         $this->response->setOutput(json_encode($json));
+    }
+
+    /**
+     * Checks that the data is a result from the Econt customer info form (id, name and phone are always there)
+     *
+     * @param mixed $customerInfo
+     * @return bool
+     */
+    private function isValidCustomerInfo($customerInfo): bool {
+        return is_array($customerInfo)
+            && is_scalar($customerInfo['id'] ?? null) && trim((string)$customerInfo['id']) !== ''
+            && is_string($customerInfo['name'] ?? null) && trim($customerInfo['name']) !== ''
+            && is_scalar($customerInfo['phone'] ?? null) && trim((string)$customerInfo['phone']) !== '';
     }
 
     /**
@@ -556,23 +569,5 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         } else {
             $this->log->write('Econt Delivery: No customer info found in DB for order #' . $orderId);
         }
-    }
-    
-    /**
-     * Clean up old temporary customer info records
-     * Can be called periodically or triggered by cron
-     * Removes temp records older than 24 hours
-     * 
-     * @return void
-     */
-    public function cleanupTempRecords(): void {
-        // Delete temp records older than 24 hours
-        $this->db->query("
-            DELETE FROM `" . DB_PREFIX . "econt_delivery_customer_info`
-            WHERE id_order = 0
-            AND customer_info IS NOT NULL
-        ");
-        
-        $this->log->write('Econt Delivery: Cleaned up all temporary customer info records');
     }
 }

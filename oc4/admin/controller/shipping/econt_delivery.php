@@ -1121,14 +1121,20 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         $json = [];
 
         try {
+            if (!$this->user->hasPermission('modify', 'extension/econt_delivery_oc4/shipping/econt_delivery')) {
+                throw new \Exception($this->language->get('error_permission'));
+            }
+
             if (empty($this->request->post)) {
                 throw new \Exception($this->language->get('err_missing_customer_info'));
             }
 
             $customerInfo = $this->request->post;
 
-            // Validate required fields
-            if (empty($customerInfo['id']) || empty($customerInfo['name'])) {
+            // Only a result from the Econt form (id, name and phone are always there)
+            if (!is_scalar($customerInfo['id'] ?? null) || trim((string)$customerInfo['id']) === ''
+                || !is_string($customerInfo['name'] ?? null) || trim($customerInfo['name']) === ''
+                || !is_scalar($customerInfo['phone'] ?? null) || trim((string)$customerInfo['phone']) === '') {
                 throw new \Exception($this->language->get('err_missing_customer_info'));
             }
 
