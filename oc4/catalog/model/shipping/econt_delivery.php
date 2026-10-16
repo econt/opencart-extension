@@ -217,7 +217,6 @@ class EcontDelivery extends \Opencart\System\Engine\Model {
         $orderProducts = $this->db->query("
             SELECT
                 op.*,
-                p.sku,
                 p.weight + COALESCE(SUM(IF(ov.weight_prefix = '-', -ov.weight, ov.weight)), 0) as weight
             FROM {$dbp}order_product op
             JOIN {$dbp}product p ON p.product_id = op.product_id
@@ -233,12 +232,14 @@ class EcontDelivery extends \Opencart\System\Engine\Model {
                 $order['shipmentDescription'] = $orderProducts->row['name'];
             }
 
+            $skus = $this->getProductSkus(array_column($orderProducts->rows, 'product_id'));
+
             foreach ($orderProducts->rows as $product) {
                 $itemPrice = (float)$product['total'] + ((float)$product['tax'] * (int)$product['quantity']);
-                
+
                 $order['items'][] = [
                     'name' => $product['name'],
-                    'SKU' => $product['sku'],
+                    'SKU' => $skus[$product['product_id']] ?? '',
                     'URL' => $this->url->link('product/product', 'product_id=' . $product['product_id'], true),
                     'count' => (int)$product['quantity'],
                     'totalPrice' => $itemPrice,
@@ -277,5 +278,31 @@ class EcontDelivery extends \Opencart\System\Engine\Model {
             'orderData' => $orderData,
             'customerInfo' => $customerInfo
         ];
+    }
+
+    /**
+     * SKU на продуктите: product_id => SKU.
+     * До OpenCart 4.1 е в колоната product.sku, от 4.1 е в product_code с code = 'SKU'.
+     *
+     * @param array $productIds
+     * @return array
+     */
+    private function getProductSkus(array $productIds): array {
+        $productIds = array_unique(array_map('intval', $productIds));
+
+        if (!$productIds) {
+            return [];
+        }
+
+        $dbp = DB_PREFIX;
+        $ids = implode(',', $productIds);
+
+        if ($this->db->query("SHOW COLUMNS FROM `{$dbp}product` LIKE 'sku'")->num_rows) {
+            $query = $this->db->query("SELECT product_id, sku FROM `{$dbp}product` WHERE product_id IN ({$ids})");
+        } else {
+            $query = $this->db->query("SELECT product_id, `value` AS sku FROM `{$dbp}product_code` WHERE `code` = 'SKU' AND product_id IN ({$ids})");
+        }
+
+        return array_column($query->rows, 'sku', 'product_id');
     }
 }
