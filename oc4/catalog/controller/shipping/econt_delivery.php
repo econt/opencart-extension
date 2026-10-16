@@ -111,14 +111,7 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
             // Update shipping address in session
             $this->updateSessionAddress($customerInfo);
 
-            // Calculate and update shipping price
-            $this->load->model('extension/econt_delivery_oc4/shipping/econt_delivery');
-            $shippingPrice = $this->model_extension_econt_delivery_oc4_shipping_econt_delivery->calculateShippingPrice();
-
-            if (isset($this->session->data['shipping_method']) && $this->session->data['shipping_method']['code'] === 'econt_delivery.econt_delivery') {
-                $this->session->data['shipping_method']['cost'] = $shippingPrice;
-                $this->session->data['shipping_methods']['econt_delivery']['quote']['econt_delivery']['cost'] = $shippingPrice;
-            }
+            $shippingPrice = $this->refreshShippingCost();
 
             $json['success'] = true;
             $json['customer_info'] = $customerInfo;
@@ -180,7 +173,48 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
                 $this->response->output();
                 exit;
             }
+
+            // OpenCart copies the cached quote into shipping_method, so it must have the price of the selected address
+            $this->refreshShippingCost();
         }
+    }
+
+    /**
+     * Put the current Econt price in the order totals before the order is created
+     * Events: catalog/controller/checkout/confirm/before, catalog/controller/checkout/confirm.confirm/before
+     *
+     * The payment method is known only here (shipping_method.save unsets it), so the cash on delivery price applies.
+     *
+     * @param string $route
+     * @param array $args
+     * @return void
+     */
+    public function beforeCheckoutConfirm(string $route, array &$args): void {
+        $this->refreshShippingCost();
+    }
+
+    /**
+     * Write the Econt price (from the selected address and payment method) to the cached quote and to the selected
+     * shipping method. OpenCart takes the shipping cost from them and does not call getQuote() again.
+     *
+     * @return float
+     */
+    private function refreshShippingCost(): float {
+        $this->load->model('extension/econt_delivery_oc4/shipping/econt_delivery');
+        $shippingPrice = $this->model_extension_econt_delivery_oc4_shipping_econt_delivery->calculateShippingPrice();
+        $text = $this->currency->format($shippingPrice, $this->session->data['currency']);
+
+        if (isset($this->session->data['shipping_methods']['econt_delivery']['quote']['econt_delivery'])) {
+            $this->session->data['shipping_methods']['econt_delivery']['quote']['econt_delivery']['cost'] = $shippingPrice;
+            $this->session->data['shipping_methods']['econt_delivery']['quote']['econt_delivery']['text'] = $text;
+        }
+
+        if (($this->session->data['shipping_method']['code'] ?? '') === 'econt_delivery.econt_delivery') {
+            $this->session->data['shipping_method']['cost'] = $shippingPrice;
+            $this->session->data['shipping_method']['text'] = $text;
+        }
+
+        return $shippingPrice;
     }
 
     /**

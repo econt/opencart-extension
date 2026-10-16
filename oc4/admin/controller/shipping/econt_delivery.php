@@ -99,6 +99,22 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
 		    ],
 		    [
 			    'code'        => 'econt_delivery_oc4',
+			    'description' => 'Econt Delivery - Shipping price before order confirmation',
+			    'trigger'     => 'catalog/controller/checkout/confirm/before',
+			    'action'      => 'extension/econt_delivery_oc4/shipping/econt_delivery.beforeCheckoutConfirm',
+			    'status'      => 1,
+			    'sort_order'  => 1
+		    ],
+		    [
+			    'code'        => 'econt_delivery_oc4',
+			    'description' => 'Econt Delivery - Shipping price before order confirmation (AJAX)',
+			    'trigger'     => 'catalog/controller/checkout/confirm.confirm/before',
+			    'action'      => 'extension/econt_delivery_oc4/shipping/econt_delivery.beforeCheckoutConfirm',
+			    'status'      => 1,
+			    'sort_order'  => 1
+		    ],
+		    [
+			    'code'        => 'econt_delivery_oc4',
 			    'description' => 'Econt Delivery - Save customer info after order confirmation',
 			    'trigger'     => 'catalog/controller/checkout/confirm.confirm/after',
 			    'action'      => 'extension/econt_delivery_oc4/shipping/econt_delivery.afterCheckoutConfirmConfirm',

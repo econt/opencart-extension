@@ -78,7 +78,8 @@ class EcontDelivery extends \Opencart\System\Engine\Model {
 
         // Adjust price based on payment method
         if (isset($this->session->data['payment_method']['code'])) {
-            $paymentCode = $this->session->data['payment_method']['code'];
+            // 'cod' up to OpenCart 4.0.1, 'cod.cod' from 4.0.2
+            $paymentCode = explode('.', $this->session->data['payment_method']['code'])[0];
 
             switch ($paymentCode) {
                 case 'cod':
