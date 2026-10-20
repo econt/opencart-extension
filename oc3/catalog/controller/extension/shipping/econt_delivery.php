@@ -648,22 +648,30 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 
     public function loadEcontDeliveryData()
     {
+        // Event catalog/controller/api/*/before runs before the API controller checks the login,
+        // so only an API session (api/login from the admin) may read or change the data of an order
+        if (!isset($this->session->data['api_id'])) {
+            return;
+        }
 
         $orderId = @intval($this->request->get['order_id'] ?? $this->session->data['order_id'] ?? 0);
 
         if (@$this->request->get['action'] === 'updateCustomerInfo') {
+            $customerInfo = $this->request->post;
 
-            if ($orderId > 0) {
-
-                $this->db->query("
-                    INSERT INTO " . DB_PREFIX . "econt_delivery_customer_info
-                    SET id_order = {$orderId},
-                        customer_info = '" . json_encode($this->request->post) . "'
-                    ON DUPLICATE KEY UPDATE
-                        customer_info = VALUES(customer_info)
-                ");
+            // Only data with name and phone from the Econt form (a foreign message is skipped)
+            if ($this->isValidCustomerInfo($customerInfo)) {
+                if ($orderId > 0) {
+                    $this->db->query("
+                        INSERT INTO " . DB_PREFIX . "econt_delivery_customer_info
+                        SET id_order = {$orderId},
+                            customer_info = '" . $this->db->escape(json_encode($customerInfo)) . "'
+                        ON DUPLICATE KEY UPDATE
+                            customer_info = VALUES(customer_info)
+                    ");
+                }
+                $this->session->data['econt_delivery']['customer_info'] = $customerInfo;
             }
-            $this->session->data['econt_delivery']['customer_info'] = $this->request->post;
         } else {
             if (array_key_exists('econt_delivery', $this->session->data) && empty($this->session->data['econt_delivery']['customer_info']) && $orderId > 0) {
                 $customerInfo = $this->db->query("
