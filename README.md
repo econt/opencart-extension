@@ -110,7 +110,8 @@ wiki/         копие на страниците от GitHub wiki
    версия в админа на OpenCart 3 маха всичко освен цифрите и точките. Линкът
    `releases/latest/download/econt_delivery.ocmod.zip` в Достави с Еконт сочи към последния release, затова
    всеки release трябва да съдържа и zip-а за OpenCart 3.
-4. Двата zip-а се качват и на static-content.econt.com.
+4. Линковете (README, wiki, Достави с Еконт) сочат към `releases/latest` и не се пипат. Старите копия на
+   static-content.econt.com се сменят през екипа на сайта econt.com.
 
 # 🏁 Пълна документация
 - [Документация](https://github.com/econt/opencart-extension/wiki)

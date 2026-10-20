@@ -5,7 +5,7 @@
 ## 📥 Изтеглете модула
 
 
-🔹 [Кликнете тук](https://static-content.econt.com/cms/integrations-delivery/modules/econt_delivery.ocmod.zip) за да изтеглите версията на модула **Econt Delivery за OpenCart 3.0+**
+🔹 [Кликнете тук](https://github.com/econt/opencart-extension/releases/latest/download/econt_delivery.ocmod.zip) за да изтеглите версията на модула **Econt Delivery за OpenCart 3.0+**
 
 🔹 [Кликнете тук](https://github.com/econt/opencart-extension/releases/latest/download/econt_delivery_oc4.ocmod.zip) за да изтеглите версията на модула **Econt Delivery за OpenCart 4.0.2.0+** (4.0.0.0–4.0.1.1 не се поддържат)
 
