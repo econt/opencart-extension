@@ -659,7 +659,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller
         if (@$this->request->get['action'] === 'updateCustomerInfo') {
             $customerInfo = $this->request->post;
 
-            // Only a result from the Econt form (not shipment_error or a foreign message)
+            // Only data with name and phone from the Econt form (a foreign message is skipped)
             if ($this->isValidCustomerInfo($customerInfo)) {
                 if ($orderId > 0) {
                     $this->db->query("
