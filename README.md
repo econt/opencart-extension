@@ -19,13 +19,17 @@
 Модулът има отделен пакет за всяка версия на OpenCart. Двата пакета са с обща версия и излизат в един и същ
 [release](https://github.com/econt/opencart-extension/releases/latest).
 
-|                         | OpenCart 3 (3.0.x)                                                                                                                  | OpenCart 4 (4.0+)                                                                                                                           |
+|                         | OpenCart 3 (3.0.x)                                                                                                                  | OpenCart 4 (4.0.2.0+)                                                                                                                       |
 |-------------------------|-------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
 | **Пакет**               | [econt_delivery.ocmod.zip](https://github.com/econt/opencart-extension/releases/latest/download/econt_delivery.ocmod.zip)           | [econt_delivery_oc4.ocmod.zip](https://github.com/econt/opencart-extension/releases/latest/download/econt_delivery_oc4.ocmod.zip)           |
 | **PHP**                 | 7.4+                                                                                                                                | 8.0+                                                                                                                                        |
 | **Инсталация**          | Extensions → Installer, после Extensions → Extensions → Shipping                                                                    | Extensions → Installer, после Extensions → Extensions → Shipping                                                                            |
 | **Ръчна инсталация**    | `oc3/admin` и `oc3/catalog` от репото се копират в главната директория на магазина                                                  | Не се поддържа: OpenCart 4 зарежда разширението само ако е качено през Installer. Името на файла трябва да е точно `econt_delivery_oc4.ocmod.zip` |
+| **Econt Pay**           | Включен (Extensions → Extensions → Payments)                                                                                         | Няма: засега е само за OpenCart 3                                                                                                           |
 | **Код в репото**        | [`oc3/`](oc3)                                                                                                                       | [`oc4/`](oc4)                                                                                                                               |
+
+OpenCart 4.0.0.0–4.0.1.1 не се поддържат: в тях методът в route-а на event-ите се отделя с `|`, а модулът ползва `.`
+(както OpenCart от 4.0.2.0).
 
 Подробно: [🛠️ Инсталация](https://github.com/econt/opencart-extension/wiki/Installation).
 
@@ -54,7 +58,7 @@
 
 | 🔧 Компонент    | ✅ Минимум      | ⭐ Препоръчано    | 🔍 Как да проверя                                          |
 |-----------------|----------------|------------------|------------------------------------------------------------|
-| **OpenCart**    | 3.0.x или 4.0+ | Последна версия  | Admin -> Dashboard (най-долу в страницата)                 |
+| **OpenCart**    | 3.0.x или 4.0.2.0+ | Последна версия  | Admin -> Dashboard (най-долу в страницата)                 |
 | **PHP**         | 7.4+ за OpenCart 3, 8.0+ за OpenCart 4 | 8.1+ | Проверете във Вашият CPanel или питайте Вашият разработчик |
 | **HTTPS/SSL**   | ✅ Задължително | Валиден SSL      | Адресната лента → 🔒                                       |
 
