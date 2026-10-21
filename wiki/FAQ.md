@@ -1,3 +1,5 @@
+[⬅️ Назад към Начало](https://github.com/econt/opencart-extension/wiki/Home)
+
 # Често задавани въпроси (ЧЗВ)
 
 Тази страница събира често задавани въпроси относно модула Econt за OpenCart.
