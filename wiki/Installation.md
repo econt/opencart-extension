@@ -1,3 +1,5 @@
+[⬅️ Назад към Начало](https://github.com/econt/opencart-extension/wiki/Home)
+
 # 📦 Инсталация
 
 🚀 Econt ви предоставя нова възможност за вашия бизнес. Ако вашият онлайн магазин е на платформата OpenCart, можете да го свържете с Deliver with Econt, като изпълните няколко лесни стъпки. По този начин можете да управлявате пратките до вашите клиенти с едно кликване, а ние ще ги доставим за вас.
@@ -16,7 +18,7 @@
 
 ### Стъпка 1
 - Проверете версията на OpenCart магазина, в който ще интегрирате разширителния модул. Можете да направите това от началната страница на админ панела, версията се показва в долната част на страницата. 
-<img src="/wiki/images/install-step1.png" alt="Проверка на версията на OpenCart" style="max-width:100%;">
+<img src="https://github.com/econt/opencart-extension/wiki/images/install-step1.png" alt="Проверка на версията на OpenCart" style="max-width:100%;">
 
 ### Стъпка 2
 - За да предотвратите загуба на данни и/или файлове, препоръчваме да направите резервно копие на наличните. Можете да го направите, като отворите главната директория (хостинг на сайта) и направите резервно копие на наличната информация от директориите /admin и /catalog. Възможно е да се наложи да използвате FTP клиент или друг метод за прехвърляне на файлове.
@@ -25,11 +27,11 @@
 - Посетете [Delivery Econt](https://delivery.econt.com)
 - За да влезете в приложението, използвайте своя акаунт, за да получите достъп до https://ee.econt.com . Ако нямате акаунт, можете да се регистрирате от: https://login.econt.com/register/
 - Добавете вашия магазин и направете всички настройки, като следвате 6-степенното ръководство. Копирайте идентификатора и кода за свързване от стъпка 6. Изтеглете модула.
-<img src="/wiki/images/install-step3.png" alt="Регистрация в Delivery Econt" style="max-width:100%;">
+<img src="https://github.com/econt/opencart-extension/wiki/images/install-step3.png" alt="Регистрация в Delivery Econt" style="max-width:100%;">
 
 ### 🔹 Стъпка 4
 - Отворете административния панел на вашия онлайн магазин (/admin) и отидете в Разширения -> Инсталатор и кликнете върху бутона Качи. Намерете модула Deliver with Econt на вашия компютър, изберете го и го качите.
-  <img src="/wiki/images/install-step4.png" alt="Качване на .zip" style="max-width:100%;">
+  <img src="https://github.com/econt/opencart-extension/wiki/images/install-step4.png" alt="Качване на .zip" style="max-width:100%;">
 
 ### 🔹 Стъпка 5
 Отидете в Разширения и изберете Доставка от падащото меню. В списъка с модули намерете Econt Delivery и кликнете върху бутона Инсталирай. След успешната инсталация кликнете върху бутона Редактирай и задайте следните настройки:
@@ -40,16 +42,16 @@
 - Система -> Локализация -> Гео зони).
 - За „Режим на плащане/Checkout mode“ можете да изберете от падащото меню дали искате да използвате стандартното плащане (Нормално) или едностъпковото плащане.
 - За „Статус/Status“ изберете „Активирано/Active“.
-  <img src="/wiki/images/install-step5.png" alt="Активиране на модула" style="max-width:100%;">
+  <img src="https://github.com/econt/opencart-extension/wiki/images/install-step5.png" alt="Активиране на модула" style="max-width:100%;">
 
 ### 🔹 Стъпка 6
 - От панела за администрация на магазина отворете менюто Система -> Локализация -> Валути.
   Ако не виждате Лева като валута, изберете Добави нова и я добавете, като попълните BGN в полето Код.
-  <img src="/wiki/images/install-step6.png" alt="Валута" style="max-width:100%;">
+  <img src="https://github.com/econt/opencart-extension/wiki/images/install-step6.png" alt="Валута" style="max-width:100%;">
 
 ### 🔹 Стъпка 7
 - Отидете в Разширения -> Разширения и изберете Плащания от падащото меню. Намерете Наложен платеж в списъка с модули. Ако не е инсталиран, инсталирайте го и задайте необходимите настройки, като изберете Активиран в полето Статус и запазете промените.
-  <img src="/wiki/images/install-step7.png" alt="Валута" style="max-width:100%;">
+  <img src="https://github.com/econt/opencart-extension/wiki/images/install-step7.png" alt="Валута" style="max-width:100%;">
 
 ## 🎉 Готово!
 
@@ -93,11 +95,11 @@ OpenCart 4 не качва разширение, което вече е инст
 ### 🔹 Стъпка 1
 - Ако искате вашият клиент да използва метода на плащане EcontPay, следвайте стъпките по-долу, за да го добавите във вашия уебсайт. От админ панела на вашия уебсайт изберете
 Разширения-> Разширения-> Плащания.
-<img src="/wiki/images/install-payment-step1.png" alt="Инсталиране на Еконт пей" style="max-width:100%;">
+<img src="https://github.com/econt/opencart-extension/wiki/images/install-payment-step1.png" alt="Инсталиране на Еконт пей" style="max-width:100%;">
 
 ### 🔹 Стъпка 2
 - Намерете метод на плащане EcontPay и кликнете върху Инсталирай.
-  <img src="/wiki/images/install-payment-step2.png" alt="Инсталиране на Еконт пей стъпка 2" style="max-width:100%;">
+  <img src="https://github.com/econt/opencart-extension/wiki/images/install-payment-step2.png" alt="Инсталиране на Еконт пей стъпка 2" style="max-width:100%;">
 
 ---
 ## ❓ Нуждаете се от помощ?

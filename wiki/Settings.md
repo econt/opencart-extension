@@ -1,3 +1,5 @@
+[⬅️ Назад към Начало](https://github.com/econt/opencart-extension/wiki/Home)
+
 # Настройки
 
 ### 🔹 Стъпка 1
