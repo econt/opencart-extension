@@ -317,7 +317,7 @@ class ModelExtensionShippingEcontDelivery extends Model {
                     $this->db->query("
                             INSERT INTO ".DB_PREFIX."econt_delivery_customer_info
                             SET id_order = {$orderId},
-                                customer_info = '".json_encode($this->session->data['econt_delivery']['customer_info'])."'
+                                customer_info = '".$this->db->escape(json_encode($this->session->data['econt_delivery']['customer_info']))."'
                             ON DUPLICATE KEY UPDATE customer_info = VALUES(customer_info)
                         ");
                 }
