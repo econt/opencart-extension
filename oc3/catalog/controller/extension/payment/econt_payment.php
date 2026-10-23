@@ -36,8 +36,8 @@ class ControllerExtensionPaymentEcontPayment extends Controller {
             $curl = curl_init();
             curl_setopt($curl, CURLOPT_URL, $settings['shipping_econt_delivery_system_url'] . $url);
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
             curl_setopt($curl, CURLOPT_HTTPHEADER, [
                 'Content-Type: application/json',
                 "Authorization: {$settings['shipping_econt_delivery_private_key']}"
