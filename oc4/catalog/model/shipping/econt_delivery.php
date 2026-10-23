@@ -100,40 +100,16 @@ class EcontDelivery extends \Opencart\System\Engine\Model {
      * @return float Order total
      */
     public function getOrderTotal(): float {
-        $this->load->model('setting/extension');
+        $this->load->model('checkout/cart');
 
         $totals = [];
         $taxes = $this->cart->getTaxes();
         $total = 0;
 
-        $totalData = [
-            'totals' => &$totals,
-            'taxes' => &$taxes,
-            'total' => &$total
-        ];
-
-        $sortOrder = [];
-        $results = $this->model_setting_extension->getExtensions('total');
-
-        foreach ($results as $key => $value) {
-            $sortOrder[$key] = $this->config->get('total_' . $value['extension'] . '_sort_order');
-        }
-
-        array_multisort($sortOrder, SORT_ASC, $results);
-
-        foreach ($results as $result) {
-            if ($this->config->get('total_' . $result['extension'] . '_status')) {
-                $this->load->model('extension/total/' . $result['extension']);
-                $this->{'model_extension_total_' . $result['extension']}->getTotal($totalData);
-            }
-        }
-
-        $sortOrder = [];
-        foreach ($totals as $key => $value) {
-            $sortOrder[$key] = $value['sort_order'];
-        }
-
-        array_multisort($sortOrder, SORT_ASC, $totals);
+        // The totals of OpenCart itself (sub-total, taxes, coupons, ...), as in checkout/confirm.
+        // The OpenCart 3 way (extension/total/<code>, getTotal($total_data)) finds no totals in OpenCart 4, so the
+        // order total was always 0. The call goes through a closure because the proxy cannot pass by reference.
+        ($this->model_checkout_cart->getTotals)($totals, $taxes, $total);
 
         // Sum all totals except shipping and final total
         return array_reduce($totals, function($sum, $currentRow) {
