@@ -105,6 +105,14 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
                 throw new \Exception($this->language->get('err_missing_customer_info'));
             }
 
+            // The prices from the browser are replaced with prices from the Econt server
+            $this->load->model('extension/econt_delivery_oc4/shipping/econt_delivery');
+            $customerInfo = $this->model_extension_econt_delivery_oc4_shipping_econt_delivery->withServerPrices($customerInfo);
+
+            if (!$customerInfo) {
+                throw new \Exception($this->language->get('err_missing_customer_info'));
+            }
+
             // Save to session
             $this->session->data['econt_delivery']['customer_info'] = $customerInfo;
 

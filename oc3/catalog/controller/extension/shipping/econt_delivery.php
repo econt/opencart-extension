@@ -304,7 +304,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 
             if (!isset($this->session->data['econte_delivery'])) {
                 if (isset($this->request->post['customerInfo'])) {
-                    $this->session->data['econt_delivery']['customer_info'] = $this->request->post['customerInfo'];
+                    $this->session->data['econt_delivery']['customer_info'] = $this->checkCustomerInfo($this->request->post['customerInfo']);
                 } else {
                     $this->session->data['econt_delivery']['customer_info'] = null;
                 }
@@ -339,24 +339,17 @@ class ControllerExtensionShippingEcontDelivery extends Controller
             return;
         }
 
-        $paymentData = null;
-
-        if (array_key_exists("econt_delivery_temporary_shipping_price", $_COOKIE)) {
-            $paymentData = json_decode($_COOKIE["econt_delivery_temporary_shipping_price"]);
+        // The price comes from the data in the session (prices from the Econt server), not from a browser cookie
+        if (empty($this->session->data['econt_delivery']['customer_info'])) {
+            return;
         }
 
-        $paymentMethod = $this->session->data['payment_method']['code'];
+        $this->load->model('extension/shipping/econt_delivery');
+        $shippingPrice = $this->model_extension_shipping_econt_delivery->calculateShippingPrice();
 
-        if ($paymentData) {
-            if ($paymentMethod === 'cod') {
-                $this->session->data['shipping_method']['cost'] = $paymentData->shipping_price_cod;
-            } elseif ($paymentMethod === 'econt_payment') {
-                $this->session->data['shipping_method']['cost'] = $paymentData->shipping_price_cod_e;
-            } else {
-                $this->session->data['shipping_method']['cost'] = $paymentData->shipping_price;
-            }
+        if ($shippingPrice !== null) {
+            $this->session->data['shipping_method']['cost'] = $shippingPrice;
         }
-
     }
 
     public function onChangePaymentMethod()
@@ -370,7 +363,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller
             if ($settings['shipping_econt_delivery_checkout_mode'] == 'onestep') {
                 $this->session->data['payment_method']['code'] = $this->request->request['payment_method'];
                 $this->session->data['payment_method']['title'] = $this->session->data['payment_methods'][$this->request->request['payment_method']]['title'];
-                $this->session->data['econt_delivery']['customer_info'] = json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']), true);
+                $this->session->data['econt_delivery']['customer_info'] = $this->checkCustomerInfo(json_decode(html_entity_decode($this->request->request['econt_delivery_shipping_info']), true));
                 $this->afterCheckoutConfirm();
             }
         }
@@ -436,7 +429,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller
             }
 
             // Data that is not a result from the Econt form (e.g. a foreign postMessage) must not reach the order
-            $this->session->data['econt_delivery']['customer_info'] = $this->isValidCustomerInfo($customerInfo) ? $customerInfo : null;
+            $this->session->data['econt_delivery']['customer_info'] = $this->checkCustomerInfo($customerInfo);
 
             if (!$this->session->data['econt_delivery']['customer_info']) {
                 $this->load->language('extension/shipping/econt_delivery');
@@ -732,6 +725,21 @@ class ControllerExtensionShippingEcontDelivery extends Controller
         return is_array($customerInfo)
             && is_string($customerInfo['name'] ?? null) && trim($customerInfo['name']) !== ''
             && is_scalar($customerInfo['phone'] ?? null) && trim((string)$customerInfo['phone']) !== '';
+    }
+
+    /**
+     * Data from the Econt form with the shipping prices from the Econt server, or null when it is not a result from
+     * the form or the prices cannot be checked
+     */
+    private function checkCustomerInfo($customerInfo)
+    {
+        if (!$this->isValidCustomerInfo($customerInfo)) {
+            return null;
+        }
+
+        $this->load->model('extension/shipping/econt_delivery');
+
+        return $this->model_extension_shipping_econt_delivery->withServerPrices($customerInfo);
     }
 
     /**
