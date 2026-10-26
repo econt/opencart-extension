@@ -481,6 +481,15 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 
         if (isset($this->session->data['shipping_method']['code']) && $this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
 
+            // Before the cash on delivery confirm button: the Econt form keeps its customer info id when the customer
+            // changes the address in it, so the price is asked again without the cache. A changed price goes back to
+            // the checkout, where the confirm step shows it and puts it in the order.
+            if (($this->request->get['route'] ?? '') === 'extension/payment/cod/confirm' && $this->priceChangedBeforeConfirm()) {
+                $this->response->addHeader('Content-Type: application/json');
+                $this->response->setOutput(json_encode(array('redirect' => $this->url->link('checkout/checkout', '', true))));
+                return true;
+            }
+
             $orderId = @intval($this->session->data['order_id']);
 
             if (!$this->isValidCustomerInfo($this->session->data['econt_delivery']['customer_info'] ?? null) || $orderId <= 0) {
@@ -539,6 +548,20 @@ class ControllerExtensionShippingEcontDelivery extends Controller
         }
 
         if ($this->session->data['shipping_method']['code'] == 'econt_delivery.econt_delivery') {
+            // The Econt form keeps its customer info id when the customer changes the address in it, so before the
+            // confirm step the price is asked again without the cache
+            $this->load->model('extension/shipping/econt_delivery');
+            $customerInfo = $this->model_extension_shipping_econt_delivery->withServerPrices($this->session->data['econt_delivery']['customer_info'] ?? null, true);
+
+            if (!$customerInfo) {
+                $this->load->language('extension/shipping/econt_delivery');
+                $this->response->addHeader('Content-Type: application/json');
+                $this->response->setOutput(json_encode(array('error' => array('warning' => $this->language->get('err_missing_customer_info')))));
+                return false;
+            }
+
+            $this->session->data['econt_delivery']['customer_info'] = $customerInfo;
+
             $postfix_map = [
                 'cod' => '_cod',
                 'econt_payment' => '_cod_e'
@@ -739,7 +762,30 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 
         $this->load->model('extension/shipping/econt_delivery');
 
-        return $this->model_extension_shipping_econt_delivery->withServerPrices($customerInfo);
+        // A result from the Econt form: the address behind its customer info id may have changed, so no cache
+        return $this->model_extension_shipping_econt_delivery->withServerPrices($customerInfo, true);
+    }
+
+    /**
+     * Asks Econt for the prices of the Econt address in the session without the cache and puts them in the session
+     *
+     * @return bool true if the prices changed or cannot be checked
+     */
+    private function priceChangedBeforeConfirm()
+    {
+        $customerInfo = $this->session->data['econt_delivery']['customer_info'] ?? null;
+
+        $this->load->model('extension/shipping/econt_delivery');
+        $checked = $this->model_extension_shipping_econt_delivery->withServerPrices($customerInfo, true);
+
+        if (!$checked) {
+            return true;
+        }
+
+        $this->session->data['econt_delivery']['customer_info'] = $checked;
+
+        return round(floatval($checked['shipping_price']), 2) != round(floatval($customerInfo['shipping_price'] ?? 0), 2)
+            || round(floatval($checked['shipping_price_cod']), 2) != round(floatval($customerInfo['shipping_price_cod'] ?? 0), 2);
     }
 
     /**

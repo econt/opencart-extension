@@ -447,10 +447,14 @@ class ModelExtensionShippingEcontDelivery extends Model {
      * the Econt Pay price, so that one is kept only between the prices without and with cash on delivery
      * (Econt blocks the Econt Pay amount with its own price anyway).
      *
+     * The Econt form keeps its customer info id when the customer changes the address in it, so the address from the
+     * form is in the cache key too, and $fresh asks Econt even if the prices are in the cache.
+     *
      * @param array $customerInfo data from the Econt form
+     * @param bool $fresh ask Econt even if the prices are in the cache
      * @return array|null the data with the server prices, or null if the prices cannot be checked
      */
-    public function withServerPrices($customerInfo) {
+    public function withServerPrices($customerInfo, $fresh = false) {
         if (!is_array($customerInfo) || !is_scalar($customerInfo['id'] ?? null) || trim((string)$customerInfo['id']) === '') {
             return null;
         }
@@ -461,8 +465,8 @@ class ModelExtensionShippingEcontDelivery extends Model {
         $currency = $this->session->data['currency'] ?? $this->config->get('config_currency');
 
         // One request to Econt per address and cart, not on every page of the checkout
-        $cacheKey = md5(implode('|', [$customerInfoId, $orderTotal, $orderWeight, $currency]));
-        $prices = $this->session->data['econt_delivery_server_prices'][$cacheKey] ?? null;
+        $cacheKey = md5(implode('|', [$customerInfoId, $this->addressKey($customerInfo), $orderTotal, $orderWeight, $currency]));
+        $prices = $fresh ? null : ($this->session->data['econt_delivery_server_prices'][$cacheKey] ?? null);
 
         if (!$prices) {
             $price = $this->getEcontPrice($customerInfoId, $orderTotal, $orderWeight, $currency, false);
@@ -491,6 +495,22 @@ class ModelExtensionShippingEcontDelivery extends Model {
         $customerInfo['shipping_price_cod_e'] = min(max($priceCodE, $minPrice), $maxPrice);
 
         return $customerInfo;
+    }
+
+    /**
+     * The address fields of the data from the Econt form, for the cache key of the prices
+     *
+     * @param array $customerInfo
+     * @return string
+     */
+    private function addressKey($customerInfo) {
+        $address = array();
+
+        foreach (array('country_code', 'city_name', 'post_code', 'office_code', 'address', 'zip') as $field) {
+            $address[] = is_scalar($customerInfo[$field] ?? null) ? (string)$customerInfo[$field] : '';
+        }
+
+        return implode('|', $address);
     }
 
     /**
@@ -559,6 +579,12 @@ class ModelExtensionShippingEcontDelivery extends Model {
 
         if(is_null($aData)) {
             return 0;
+        }
+
+        // The prices follow the cart: a changed cart is asked from Econt again (otherwise they come from the cache)
+        $checked = $this->withServerPrices($aData);
+        if ($checked) {
+            $aData = $this->session->data['econt_delivery']['customer_info'] = $checked;
         }
         
         $payment_method_price_map = [
