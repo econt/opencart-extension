@@ -356,8 +356,8 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
                     $curl = curl_init();
                     curl_setopt($curl, CURLOPT_URL, "{$this->request->post['shipping_econt_delivery_system_url']}/services/PluginsService.logEvent.json");
                     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-                    curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+                    curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+                    curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
                     curl_setopt($curl, CURLOPT_HTTPHEADER, [
                         'Content-Type: application/json',
                         "Authorization: {$this->request->post['shipping_econt_delivery_private_key']}"
@@ -408,8 +408,8 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
             $curl = curl_init();
             curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/OrdersService.getTrace.json");
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
             curl_setopt($curl, CURLOPT_HTTPHEADER, [
                 'Content-Type: application/json',
                 "Authorization: {$settings['shipping_econt_delivery_private_key']}"
@@ -957,8 +957,8 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
 		    $curl = curl_init();
 		    curl_setopt($curl, CURLOPT_URL, $settings['shipping_econt_delivery_system_url'] . '/services/OrdersService.getOrder.json');
 		    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-		    curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-		    curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+		    curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+		    curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
 		    curl_setopt($curl, CURLOPT_HTTPHEADER, [
 			    'Content-Type: application/json',
 			    'Authorization: ' . $settings['shipping_econt_delivery_private_key']
@@ -978,8 +978,8 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
 		        $curl = curl_init();
 		        curl_setopt($curl, CURLOPT_URL, $settings['shipping_econt_delivery_system_url'] . '/services/OrdersService.updateOrder.json');
 		        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-		        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-		        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+		        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+		        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
 		        curl_setopt($curl, CURLOPT_HTTPHEADER, [
 			        'Content-Type: application/json',
 			        'Authorization: ' . $settings['shipping_econt_delivery_private_key']

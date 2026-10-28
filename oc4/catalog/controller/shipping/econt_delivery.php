@@ -105,6 +105,15 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
                 throw new \Exception($this->language->get('err_missing_customer_info'));
             }
 
+            // The prices from the browser are replaced with prices from the Econt server
+            $this->load->model('extension/econt_delivery_oc4/shipping/econt_delivery');
+            // A result from the Econt form: the address behind its customer info id may have changed, so no cache
+            $customerInfo = $this->model_extension_econt_delivery_oc4_shipping_econt_delivery->withServerPrices($customerInfo, true);
+
+            if (!$customerInfo) {
+                throw new \Exception($this->language->get('err_missing_customer_info'));
+            }
+
             // Save to session
             $this->session->data['econt_delivery']['customer_info'] = $customerInfo;
 
@@ -203,6 +212,23 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
      * @return void
      */
     public function beforeCheckoutConfirm(string $route, array &$args): void {
+        // The Econt form keeps its customer info id when the customer changes the address in it, so the price is asked
+        // again without the cache: the confirm step shows it and the order gets it
+        $customerInfo = $this->session->data['econt_delivery']['customer_info'] ?? null;
+
+        if ($customerInfo && ($this->session->data['shipping_method']['code'] ?? '') === 'econt_delivery.econt_delivery') {
+            $this->load->model('extension/econt_delivery_oc4/shipping/econt_delivery');
+            $checked = $this->model_extension_econt_delivery_oc4_shipping_econt_delivery->withServerPrices($customerInfo, true);
+
+            if (!$checked) {
+                // Without a price from Econt there is no Econt shipping method, and OpenCart does not confirm the order
+                unset($this->session->data['shipping_method'], $this->session->data['econt_delivery']['customer_info']);
+                return;
+            }
+
+            $this->session->data['econt_delivery']['customer_info'] = $checked;
+        }
+
         $this->refreshShippingCost();
     }
 
@@ -345,8 +371,8 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
             $curl = curl_init();
             curl_setopt($curl, CURLOPT_URL, $settings['shipping_econt_delivery_system_url'] . '/services/OrdersService.updateOrder.json');
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
             curl_setopt($curl, CURLOPT_HTTPHEADER, [
                 'Content-Type: application/json',
                 'Authorization: ' . $settings['shipping_econt_delivery_private_key']
