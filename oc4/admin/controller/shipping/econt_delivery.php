@@ -397,12 +397,12 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         return $json;
     }
 
-    // URL на формата за товарителница: сесия за поръчката от Еконт вместо ключа на магазина в браузъра (ITDEV-1191)
-    public function labelUrl(): void {
+    // URL на формата за товарителница: сесия за поръчката от Еконт вместо ключа на магазина в браузъра (ITDEV-1191).
+    // Вика се през sale/order.info (beforeAdminViewSaleOrderInfo), за да стига правото за поръчките, както досега.
+    private function labelUrl(int $orderId): array {
         $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
         $json = [];
 
-        $orderId = intval($this->request->get['order_id'] ?? 0);
         if (!$this->user->hasPermission('access', 'sale/order')) {
             $json['error'] = $this->language->get('error_permission');
         } else if ($orderId <= 0) {
@@ -443,8 +443,7 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
             }
         }
 
-        $this->response->addHeader('Content-Type: application/json');
-        $this->response->setOutput(json_encode($json));
+        return $json;
     }
 
     private function traceShipment($orderId) {
@@ -561,9 +560,10 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         // Сесията за формата идва от сървъра на магазина, ключът не стига до браузъра (ITDEV-1191)
         $html .= '            var $iframe = $createLabelWindow.find(\'iframe\').attr(\'src\', \'about:blank\');';
         $html .= '            $.getJSON(\'index.php?\' + $.param({';
-        $html .= '                \'route\': \'extension/econt_delivery_oc4/shipping/econt_delivery.labelUrl\',';
+        $html .= '                \'route\': \'sale/order.info\',';
         $html .= '                \'user_token\': \'' . $this->session->data['user_token'] . '\',';
-        $html .= '                \'order_id\': (' . json_encode($orderId) . ' || $(this).attr(\'data-order-id\'))';
+        $html .= '                \'order_id\': (' . json_encode($orderId) . ' || $(this).attr(\'data-order-id\')),';
+        $html .= '                \'econt_delivery_label_url\': 1';
         $html .= '            }), function(json) {';
         $html .= '                if (json[\'url\']) {';
         $html .= '                    $iframe.attr(\'src\', json[\'url\']);';
@@ -890,6 +890,11 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
 
         if ($orderId <= 0) {
             return;
+        }
+
+        if (!empty($this->request->get['econt_delivery_label_url'])) {
+            header('Content-Type: application/json');
+            exit(json_encode($this->labelUrl($orderId)));
         }
 
         $this->load->model('sale/order');

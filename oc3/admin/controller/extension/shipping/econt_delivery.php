@@ -234,12 +234,13 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return empty($this->error);
     }
 
-    // URL на формата за товарителница: сесия за поръчката от Еконт вместо ключа на магазина в браузъра (ITDEV-1191)
-    public function labelUrl() {
+    // URL на формата за товарителница: сесия за поръчката от Еконт вместо ключа на магазина в браузъра (ITDEV-1191).
+    // Вика се през sale/order/info (beforeAdminViewSaleOrderInfo), за да стига правото за поръчките, както досега.
+    private function labelUrl($orderId) {
         $this->language->load('extension/shipping/econt_delivery');
         $json = array();
 
-        $orderId = intval(@$this->request->get['order_id']);
+        $orderId = intval($orderId);
         if (!$this->user->hasPermission('access', 'sale/order')) {
             $json['error'] = $this->language->get('error_permission');
         } else if ($orderId <= 0) {
@@ -280,8 +281,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
             }
         }
 
-        $this->response->addHeader('Content-Type: application/json');
-        $this->response->setOutput(json_encode($json));
+        return $json;
     }
 
     private function traceShipment($orderId) {
@@ -375,9 +375,10 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                     // Сесията за формата идва от сървъра на магазина, ключът не стига до браузъра
                     var $iframe = $createLabelWindow.find('iframe').attr('src', 'about:blank');
                     $.getJSON('index.php?' + $.param({
-                        'route': 'extension/shipping/econt_delivery/labelUrl',
+                        'route': 'sale/order/info',
                         'user_token': '<?=$this->session->data['user_token']?>',
-                        'order_id': (<?=json_encode($orderId)?> || $(this).attr('data-order-id'))
+                        'order_id': (<?=json_encode($orderId)?> || $(this).attr('data-order-id')),
+                        'econt_delivery_label_url': 1
                     }), function(json) {
                         if (json['url']) {
                             $iframe.attr('src', json['url']);
@@ -516,6 +517,11 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     public function beforeAdminViewSaleOrderInfo(&$eventRoute, &$data) {
         $orderId = intval($this->request->get['order_id']);
         if ($orderId <= 0) return;
+
+        if (!empty($this->request->get['econt_delivery_label_url'])) {
+            header('Content-Type: application/json');
+            exit(json_encode($this->labelUrl($orderId)));
+        }
 
         $this->load->model('sale/order');
         $orderData = $this->model_sale_order->getOrder($orderId);
