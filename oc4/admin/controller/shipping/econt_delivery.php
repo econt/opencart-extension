@@ -397,6 +397,56 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         return $json;
     }
 
+    // URL на формата за товарителница: сесия за поръчката от Еконт вместо ключа на магазина в браузъра (ITDEV-1191)
+    public function labelUrl(): void {
+        $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
+        $json = [];
+
+        $orderId = intval($this->request->get['order_id'] ?? 0);
+        if (!$this->user->hasPermission('access', 'sale/order')) {
+            $json['error'] = $this->language->get('error_permission');
+        } else if ($orderId <= 0) {
+            $json['error'] = 'Invalid order';
+        } else {
+            $this->load->model('setting/setting');
+            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+
+            try {
+                $curl = curl_init();
+                curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/OrdersService.createLabelSession.json");
+                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
+                curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json',
+                    "Authorization: {$settings['shipping_econt_delivery_private_key']}"
+                ]);
+                curl_setopt($curl, CURLOPT_POST, true);
+                curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode([
+                    'orderNumber' => (string)$orderId
+                ]));
+                curl_setopt($curl, CURLOPT_TIMEOUT, 6);
+                $response = json_decode(curl_exec($curl), true);
+                $curlError = curl_error($curl);
+                curl_close($curl);
+
+                if (is_string($response) && $response !== '') {
+                    $json['url'] = "{$settings['shipping_econt_delivery_system_url']}/create_label.php?" . http_build_query([
+                        'order_number' => $orderId,
+                        'token' => $response
+                    ]);
+                } else {
+                    $json['error'] = !empty($response['message']) ? $response['message'] : ($curlError ?: 'Unknown error');
+                }
+            } catch (\Exception $exception) {
+                $json['error'] = $exception->getMessage();
+            }
+        }
+
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+
     private function traceShipment($orderId) {
         $orderId = intval($orderId);
         if ($orderId <= 0) return array();
@@ -508,10 +558,20 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         $html .= '            event.preventDefault();';
         $html .= '            event.stopPropagation();';
         $html .= '';
-        $html .= '            $createLabelWindow.find(\'iframe\').attr(\'src\', \'' . $econtDeliverySettings['shipping_econt_delivery_system_url'] . '/create_label.php?\' + $.param({';
-        $html .= '                \'order_number\': (' . json_encode($orderId) . ' || $(this).attr(\'data-order-id\')),';
-        $html .= '                \'token\': \'' . $econtDeliverySettings['shipping_econt_delivery_private_key'] . '\'';
-        $html .= '            }));';
+        // Сесията за формата идва от сървъра на магазина, ключът не стига до браузъра (ITDEV-1191)
+        $html .= '            var $iframe = $createLabelWindow.find(\'iframe\').attr(\'src\', \'about:blank\');';
+        $html .= '            $.getJSON(\'index.php?\' + $.param({';
+        $html .= '                \'route\': \'extension/econt_delivery_oc4/shipping/econt_delivery.labelUrl\',';
+        $html .= '                \'user_token\': \'' . $this->session->data['user_token'] . '\',';
+        $html .= '                \'order_id\': (' . json_encode($orderId) . ' || $(this).attr(\'data-order-id\'))';
+        $html .= '            }), function(json) {';
+        $html .= '                if (json[\'url\']) {';
+        $html .= '                    $iframe.attr(\'src\', json[\'url\']);';
+        $html .= '                } else {';
+        $html .= '                    $createLabelWindow.modal(\'hide\');';
+        $html .= '                    alert(json[\'error\'] || \'Error\');';
+        $html .= '                }';
+        $html .= '            });';
         $html .= '            $createLabelWindow.modal(\'show\');';
         $html .= '        });';
         $html .= '        $(\'div.modal-header>button.close\').click(function(){';

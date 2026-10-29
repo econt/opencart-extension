@@ -234,6 +234,56 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return empty($this->error);
     }
 
+    // URL на формата за товарителница: сесия за поръчката от Еконт вместо ключа на магазина в браузъра (ITDEV-1191)
+    public function labelUrl() {
+        $this->language->load('extension/shipping/econt_delivery');
+        $json = array();
+
+        $orderId = intval(@$this->request->get['order_id']);
+        if (!$this->user->hasPermission('access', 'sale/order')) {
+            $json['error'] = $this->language->get('error_permission');
+        } else if ($orderId <= 0) {
+            $json['error'] = 'Invalid order';
+        } else {
+            $this->load->model('setting/setting');
+            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+
+            try {
+                $curl = curl_init();
+                curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/OrdersService.createLabelSession.json");
+                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
+                curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json',
+                    "Authorization: {$settings['shipping_econt_delivery_private_key']}"
+                ]);
+                curl_setopt($curl, CURLOPT_POST, true);
+                curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode(array(
+                    'orderNumber' => (string)$orderId
+                )));
+                curl_setopt($curl, CURLOPT_TIMEOUT, 6);
+                $response = json_decode(curl_exec($curl), true);
+                $curlError = curl_error($curl);
+                curl_close($curl);
+
+                if (is_string($response) && $response !== '') {
+                    $json['url'] = "{$settings['shipping_econt_delivery_system_url']}/create_label.php?" . http_build_query(array(
+                        'order_number' => $orderId,
+                        'token' => $response
+                    ));
+                } else {
+                    $json['error'] = !empty($response['message']) ? $response['message'] : ($curlError ?: 'Unknown error');
+                }
+            } catch (Exception $exception) {
+                $json['error'] = $exception->getMessage();
+            }
+        }
+
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+
     private function traceShipment($orderId) {
         $orderId = intval($orderId);
         if ($orderId <= 0) return array();
@@ -322,10 +372,20 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                     event.preventDefault();
                     event.stopPropagation();
 
-                    $createLabelWindow.find('iframe').attr('src', '<?=$econtDeliverySettings['shipping_econt_delivery_system_url'] . '/create_label.php?'?>' + $.param({
-                        'order_number': (<?=json_encode($orderId)?> || $(this).attr('data-order-id')),
-                        'token': '<?=$econtDeliverySettings['shipping_econt_delivery_private_key']?>'
-                    }));
+                    // Сесията за формата идва от сървъра на магазина, ключът не стига до браузъра
+                    var $iframe = $createLabelWindow.find('iframe').attr('src', 'about:blank');
+                    $.getJSON('index.php?' + $.param({
+                        'route': 'extension/shipping/econt_delivery/labelUrl',
+                        'user_token': '<?=$this->session->data['user_token']?>',
+                        'order_id': (<?=json_encode($orderId)?> || $(this).attr('data-order-id'))
+                    }), function(json) {
+                        if (json['url']) {
+                            $iframe.attr('src', json['url']);
+                        } else {
+                            $createLabelWindow.modal('hide');
+                            alert(json['error'] || 'Error');
+                        }
+                    });
                     $createLabelWindow.modal('show');
                 });
                 $(window).on('message', function(event){
