@@ -152,7 +152,7 @@
     
     // Handle postMessage from iframe
     var handleIframeMessage = function(event) {
-        if (!deliveryBaseUrl || event.origin.indexOf(deliveryBaseUrl) !== 0) {
+        if (!deliveryBaseUrl || event.origin !== new URL(deliveryBaseUrl).origin) {
             return;
         }
         

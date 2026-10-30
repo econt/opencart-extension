@@ -268,7 +268,7 @@
 
         $(window).unbind('message.econtShipping');
         $(window).bind('message.econtShipping',function(e){
-            if(e.originalEvent.origin.indexOf('{{ deliveryBaseURL }}') == 0) {
+            if(e.originalEvent.origin === new URL('{{ deliveryBaseURL }}').origin) {
                 var messageData = e.originalEvent.data;
                 // The browser (e.g. Chrome or the Google app on iOS) may post its own messages from the Econt frame.
                 // Accept only an error or a result from the Econt customer info form.

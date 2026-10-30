@@ -79,7 +79,7 @@
             });
         });
         $(window).on('message', function (event) {
-            if (event['originalEvent']['origin'] != window.econtDelivery.systemUrl) return;
+            if (event['originalEvent']['origin'] !== new URL(window.econtDelivery.systemUrl).origin) return;
 
             var messageData = event['originalEvent']['data'];
             // The browser (e.g. Chrome or the Google app on iOS) may post its own messages from the Econt frame.
