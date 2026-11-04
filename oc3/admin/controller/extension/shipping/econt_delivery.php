@@ -130,6 +130,10 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         if (isset($this->request->post['action']) && $this->request->post['action'] === 'save_settings' && $this->validate()) {
             $oldSettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+            // The saved key is not printed in the settings page, so an empty field keeps it (editSetting replaces the whole group)
+            if (trim((string)($this->request->post['shipping_econt_delivery_private_key'] ?? '')) === '') {
+                $this->request->post['shipping_econt_delivery_private_key'] = $oldSettings['shipping_econt_delivery_private_key'] ?? '';
+            }
             
             
             // Iframe width and height defaults
@@ -234,6 +238,56 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
         return empty($this->error);
     }
 
+    // URL на формата за товарителница: сесия за поръчката от Еконт вместо ключа на магазина в браузъра (ITDEV-1191).
+    // Вика се през sale/order/info (beforeAdminViewSaleOrderInfo), за да стига правото за поръчките, както досега.
+    private function labelUrl($orderId) {
+        $this->language->load('extension/shipping/econt_delivery');
+        $json = array();
+
+        $orderId = intval($orderId);
+        if (!$this->user->hasPermission('access', 'sale/order')) {
+            $json['error'] = $this->language->get('error_permission');
+        } else if ($orderId <= 0) {
+            $json['error'] = 'Invalid order';
+        } else {
+            $this->load->model('setting/setting');
+            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+
+            try {
+                $curl = curl_init();
+                curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/OrdersService.createLabelSession.json");
+                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
+                curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json',
+                    "Authorization: {$settings['shipping_econt_delivery_private_key']}"
+                ]);
+                curl_setopt($curl, CURLOPT_POST, true);
+                curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode(array(
+                    'orderNumber' => (string)$orderId
+                )));
+                curl_setopt($curl, CURLOPT_TIMEOUT, 6);
+                $response = json_decode(curl_exec($curl), true);
+                $curlError = curl_error($curl);
+                curl_close($curl);
+
+                if (is_string($response) && $response !== '') {
+                    $json['url'] = "{$settings['shipping_econt_delivery_system_url']}/create_label.php?" . http_build_query(array(
+                        'order_number' => $orderId,
+                        'token' => $response
+                    ));
+                } else {
+                    $json['error'] = !empty($response['message']) ? $response['message'] : ($curlError ?: 'Unknown error');
+                }
+            } catch (Exception $exception) {
+                $json['error'] = $exception->getMessage();
+            }
+        }
+
+        return $json;
+    }
+
     private function traceShipment($orderId) {
         $orderId = intval($orderId);
         if ($orderId <= 0) return array();
@@ -322,14 +376,25 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                     event.preventDefault();
                     event.stopPropagation();
 
-                    $createLabelWindow.find('iframe').attr('src', '<?=$econtDeliverySettings['shipping_econt_delivery_system_url'] . '/create_label.php?'?>' + $.param({
-                        'order_number': (<?=json_encode($orderId)?> || $(this).attr('data-order-id')),
-                        'token': '<?=$econtDeliverySettings['shipping_econt_delivery_private_key']?>'
-                    }));
+                    // Сесията за формата идва от сървъра на магазина, ключът не стига до браузъра
+                    var $iframe = $createLabelWindow.find('iframe').attr('src', 'about:blank');
+                    $.getJSON('index.php?' + $.param({
+                        'route': 'sale/order/info',
+                        'user_token': '<?=$this->session->data['user_token']?>',
+                        'order_id': (<?=json_encode($orderId)?> || $(this).attr('data-order-id')),
+                        'econt_delivery_label_url': 1
+                    }), function(json) {
+                        if (json['url']) {
+                            $iframe.attr('src', json['url']);
+                        } else {
+                            $createLabelWindow.modal('hide');
+                            alert(json['error'] || 'Error');
+                        }
+                    });
                     $createLabelWindow.modal('show');
                 });
                 $(window).on('message', function(event){
-                    if (event['originalEvent']['origin'] != '<?=$econtDeliverySettings['shipping_econt_delivery_system_url']?>') return;
+                    if (event['originalEvent']['origin'] !== new URL(<?=json_encode($econtDeliverySettings['shipping_econt_delivery_system_url'])?>).origin) return;
 
                     var messageData = event['originalEvent']['data'];
                     if (!messageData) return;
@@ -339,7 +404,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                             $createLabelWindow.modal('hide');
                             break;
                         case 'confirm':
-                            if (messageData['printPdf'] === true && !empty__(messageData['shipmentStatus']['pdfURL'])) window.open(messageData['shipmentStatus']['pdfURL'], '_blank');
+                            if (messageData['printPdf'] === true && /^https:\/\//i.test(messageData['shipmentStatus']['pdfURL'] || '')) window.open(messageData['shipmentStatus']['pdfURL'], '_blank');
                             setTimeout(function() {
                                 window.location.href = 'index.php?' + $.param({
                                     'route': 'sale/order/info',
@@ -456,6 +521,11 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
     public function beforeAdminViewSaleOrderInfo(&$eventRoute, &$data) {
         $orderId = intval($this->request->get['order_id']);
         if ($orderId <= 0) return;
+
+        if (!empty($this->request->get['econt_delivery_label_url'])) {
+            header('Content-Type: application/json');
+            exit(json_encode($this->labelUrl($orderId)));
+        }
 
         $this->load->model('sale/order');
         $orderData = $this->model_sale_order->getOrder($orderId);

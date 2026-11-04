@@ -13,6 +13,7 @@ $_['text_status_disabled'] = 'Disabled';
 $_['text_sort_order'] = 'Sort';
 $_['text_sort_order_placeholder'] = 'Sort order';
 $_['text_private_key'] = 'Connection code';
+$_['text_private_key_saved'] = 'A connection code is saved. Leave the field empty to keep it or enter a new code to replace it.';
 $_['text_geo_zone'] = 'Geo Zone';
 $_['text_geo_zone_all_zones'] = '-- All --';
 $_['text_success_setting_update'] = 'Data successfully updated!';

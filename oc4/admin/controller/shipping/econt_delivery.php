@@ -340,6 +340,10 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         $this->language->load('extension/econt_delivery_oc4/shipping/econt_delivery');
         
         $this->load->model('setting/setting');
+        // The saved key is not printed in the settings page, so an empty field keeps it (before validate(), which requires a key)
+        if (trim((string)($this->request->post['shipping_econt_delivery_private_key'] ?? '')) === '') {
+            $this->request->post['shipping_econt_delivery_private_key'] = $this->model_setting_setting->getSetting('shipping_econt_delivery')['shipping_econt_delivery_private_key'] ?? '';
+        }
         $json = $this->validate();
         
         if ( empty($json) ) {
@@ -392,6 +396,55 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
 
         if(empty($this->request->post['shipping_econt_delivery_private_key'])) {
             $json['error'] = $this->language->get('error_private_key');
+        }
+
+        return $json;
+    }
+
+    // URL на формата за товарителница: сесия за поръчката от Еконт вместо ключа на магазина в браузъра (ITDEV-1191).
+    // Вика се през sale/order.info (beforeAdminViewSaleOrderInfo), за да стига правото за поръчките, както досега.
+    private function labelUrl(int $orderId): array {
+        $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
+        $json = [];
+
+        if (!$this->user->hasPermission('access', 'sale/order')) {
+            $json['error'] = $this->language->get('error_permission');
+        } else if ($orderId <= 0) {
+            $json['error'] = 'Invalid order';
+        } else {
+            $this->load->model('setting/setting');
+            $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+
+            try {
+                $curl = curl_init();
+                curl_setopt($curl, CURLOPT_URL, "{$settings['shipping_econt_delivery_system_url']}/services/OrdersService.createLabelSession.json");
+                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
+                curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json',
+                    "Authorization: {$settings['shipping_econt_delivery_private_key']}"
+                ]);
+                curl_setopt($curl, CURLOPT_POST, true);
+                curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode([
+                    'orderNumber' => (string)$orderId
+                ]));
+                curl_setopt($curl, CURLOPT_TIMEOUT, 6);
+                $response = json_decode(curl_exec($curl), true);
+                $curlError = curl_error($curl);
+                curl_close($curl);
+
+                if (is_string($response) && $response !== '') {
+                    $json['url'] = "{$settings['shipping_econt_delivery_system_url']}/create_label.php?" . http_build_query([
+                        'order_number' => $orderId,
+                        'token' => $response
+                    ]);
+                } else {
+                    $json['error'] = !empty($response['message']) ? $response['message'] : ($curlError ?: 'Unknown error');
+                }
+            } catch (\Exception $exception) {
+                $json['error'] = $exception->getMessage();
+            }
         }
 
         return $json;
@@ -508,17 +561,28 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         $html .= '            event.preventDefault();';
         $html .= '            event.stopPropagation();';
         $html .= '';
-        $html .= '            $createLabelWindow.find(\'iframe\').attr(\'src\', \'' . $econtDeliverySettings['shipping_econt_delivery_system_url'] . '/create_label.php?\' + $.param({';
-        $html .= '                \'order_number\': (' . json_encode($orderId) . ' || $(this).attr(\'data-order-id\')),';
-        $html .= '                \'token\': \'' . $econtDeliverySettings['shipping_econt_delivery_private_key'] . '\'';
-        $html .= '            }));';
+        // Сесията за формата идва от сървъра на магазина, ключът не стига до браузъра (ITDEV-1191)
+        $html .= '            var $iframe = $createLabelWindow.find(\'iframe\').attr(\'src\', \'about:blank\');';
+        $html .= '            $.getJSON(\'index.php?\' + $.param({';
+        $html .= '                \'route\': \'sale/order.info\',';
+        $html .= '                \'user_token\': \'' . $this->session->data['user_token'] . '\',';
+        $html .= '                \'order_id\': (' . json_encode($orderId) . ' || $(this).attr(\'data-order-id\')),';
+        $html .= '                \'econt_delivery_label_url\': 1';
+        $html .= '            }), function(json) {';
+        $html .= '                if (json[\'url\']) {';
+        $html .= '                    $iframe.attr(\'src\', json[\'url\']);';
+        $html .= '                } else {';
+        $html .= '                    $createLabelWindow.modal(\'hide\');';
+        $html .= '                    alert(json[\'error\'] || \'Error\');';
+        $html .= '                }';
+        $html .= '            });';
         $html .= '            $createLabelWindow.modal(\'show\');';
         $html .= '        });';
         $html .= '        $(\'div.modal-header>button.close\').click(function(){';
         $html .= '            $createLabelWindow.modal(\'hide\');';
         $html .= '        });';
         $html .= '        $(window).on(\'message\', function(event){';
-        $html .= '            if (event[\'originalEvent\'][\'origin\'] != \'' . $econtDeliverySettings['shipping_econt_delivery_system_url'] . '\') return;';
+        $html .= '            if (event[\'originalEvent\'][\'origin\'] !== new URL(' . json_encode($econtDeliverySettings['shipping_econt_delivery_system_url']) . ').origin) return;';
         $html .= '';
         $html .= '            var messageData = event[\'originalEvent\'][\'data\'];';
         $html .= '            if (!messageData) return;';
@@ -528,7 +592,7 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         $html .= '                    $createLabelWindow.modal(\'hide\');';
         $html .= '                    break;';
         $html .= '                case \'confirm\':';
-        $html .= '                    if (messageData[\'printPdf\'] === true && !empty__(messageData[\'shipmentStatus\'][\'pdfURL\'])) window.open(messageData[\'shipmentStatus\'][\'pdfURL\'], \'_blank\');';
+        $html .= '                    if (messageData[\'printPdf\'] === true && /^https:\\/\\//i.test(messageData[\'shipmentStatus\'][\'pdfURL\'] || \'\')) window.open(messageData[\'shipmentStatus\'][\'pdfURL\'], \'_blank\');';
         $html .= '                    setTimeout(function() {';
         $html .= '                        window.location.href = \'index.php?\' + $.param({';
         $html .= '                            \'route\': \'sale/order|info\',';
@@ -668,7 +732,7 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         $html .= '    });';
         $html .= '';
         $html .= '    $(window).on(\'message\', function(event) {';
-        $html .= '        if (event.originalEvent.origin.indexOf(deliveryBaseUrl) !== 0) return;';
+        $html .= '        if (event.originalEvent.origin !== new URL(deliveryBaseUrl).origin) return;';
         $html .= '';
         $html .= '        var data = event.originalEvent.data;';
         $html .= '        if (!data || data.shipment_error) {';
@@ -830,6 +894,11 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
 
         if ($orderId <= 0) {
             return;
+        }
+
+        if (!empty($this->request->get['econt_delivery_label_url'])) {
+            header('Content-Type: application/json');
+            exit(json_encode($this->labelUrl($orderId)));
         }
 
         $this->load->model('sale/order');

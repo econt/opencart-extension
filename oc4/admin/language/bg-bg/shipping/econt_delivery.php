@@ -13,6 +13,7 @@ $_['text_status_disabled'] = 'Забранено';
 $_['text_sort_order'] = 'Сортиране';
 $_['text_sort_order_placeholder'] = 'Последователност в колоната';
 $_['text_private_key'] = 'Код за свързване';
+$_['text_private_key_saved'] = 'Има записан код за свързване. Оставете полето празно, за да го запазите, или въведете нов код, за да го смените.';
 $_['text_geo_zone'] = 'Гео зона';
 $_['text_geo_zone_all_zones'] = '-- Всички --';
 $_['text_success_setting_update'] = 'Данните за Достави с Еконт са обновени успешно';

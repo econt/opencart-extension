@@ -69,7 +69,7 @@
         // Handle messages from iframe
         var handleIframeMessage = function(event) {
             // Validate origin
-            if (!currentDeliveryBaseUrl || event.origin.indexOf(currentDeliveryBaseUrl) !== 0) {
+            if (!currentDeliveryBaseUrl || event.origin !== new URL(currentDeliveryBaseUrl).origin) {
                 return;
             }
             
