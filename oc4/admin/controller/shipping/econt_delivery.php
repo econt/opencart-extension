@@ -578,7 +578,7 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         $html .= '            $createLabelWindow.modal(\'hide\');';
         $html .= '        });';
         $html .= '        $(window).on(\'message\', function(event){';
-        $html .= '            if (event[\'originalEvent\'][\'origin\'] != \'' . $econtDeliverySettings['shipping_econt_delivery_system_url'] . '\') return;';
+        $html .= '            if (event[\'originalEvent\'][\'origin\'] !== new URL(' . json_encode($econtDeliverySettings['shipping_econt_delivery_system_url']) . ').origin) return;';
         $html .= '';
         $html .= '            var messageData = event[\'originalEvent\'][\'data\'];';
         $html .= '            if (!messageData) return;';
@@ -588,7 +588,7 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         $html .= '                    $createLabelWindow.modal(\'hide\');';
         $html .= '                    break;';
         $html .= '                case \'confirm\':';
-        $html .= '                    if (messageData[\'printPdf\'] === true && !empty__(messageData[\'shipmentStatus\'][\'pdfURL\'])) window.open(messageData[\'shipmentStatus\'][\'pdfURL\'], \'_blank\');';
+        $html .= '                    if (messageData[\'printPdf\'] === true && /^https:\\/\\//i.test(messageData[\'shipmentStatus\'][\'pdfURL\'] || \'\')) window.open(messageData[\'shipmentStatus\'][\'pdfURL\'], \'_blank\');';
         $html .= '                    setTimeout(function() {';
         $html .= '                        window.location.href = \'index.php?\' + $.param({';
         $html .= '                            \'route\': \'sale/order|info\',';
@@ -728,7 +728,7 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         $html .= '    });';
         $html .= '';
         $html .= '    $(window).on(\'message\', function(event) {';
-        $html .= '        if (event.originalEvent.origin.indexOf(deliveryBaseUrl) !== 0) return;';
+        $html .= '        if (event.originalEvent.origin !== new URL(deliveryBaseUrl).origin) return;';
         $html .= '';
         $html .= '        var data = event.originalEvent.data;';
         $html .= '        if (!data || data.shipment_error) {';

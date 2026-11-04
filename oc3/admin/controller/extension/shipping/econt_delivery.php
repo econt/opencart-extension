@@ -390,7 +390,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                     $createLabelWindow.modal('show');
                 });
                 $(window).on('message', function(event){
-                    if (event['originalEvent']['origin'] != '<?=$econtDeliverySettings['shipping_econt_delivery_system_url']?>') return;
+                    if (event['originalEvent']['origin'] !== new URL(<?=json_encode($econtDeliverySettings['shipping_econt_delivery_system_url'])?>).origin) return;
 
                     var messageData = event['originalEvent']['data'];
                     if (!messageData) return;
@@ -400,7 +400,7 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
                             $createLabelWindow.modal('hide');
                             break;
                         case 'confirm':
-                            if (messageData['printPdf'] === true && !empty__(messageData['shipmentStatus']['pdfURL'])) window.open(messageData['shipmentStatus']['pdfURL'], '_blank');
+                            if (messageData['printPdf'] === true && /^https:\/\//i.test(messageData['shipmentStatus']['pdfURL'] || '')) window.open(messageData['shipmentStatus']['pdfURL'], '_blank');
                             setTimeout(function() {
                                 window.location.href = 'index.php?' + $.param({
                                     'route': 'sale/order/info',
