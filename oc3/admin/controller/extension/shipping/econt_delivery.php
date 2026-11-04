@@ -130,6 +130,10 @@ class ControllerExtensionShippingEcontDelivery extends Controller {
 
         if (isset($this->request->post['action']) && $this->request->post['action'] === 'save_settings' && $this->validate()) {
             $oldSettings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
+            // The saved key is not printed in the settings page, so an empty field keeps it (editSetting replaces the whole group)
+            if (trim((string)($this->request->post['shipping_econt_delivery_private_key'] ?? '')) === '') {
+                $this->request->post['shipping_econt_delivery_private_key'] = $oldSettings['shipping_econt_delivery_private_key'] ?? '';
+            }
             
             
             // Iframe width and height defaults

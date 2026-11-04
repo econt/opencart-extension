@@ -340,6 +340,10 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
         $this->language->load('extension/econt_delivery_oc4/shipping/econt_delivery');
         
         $this->load->model('setting/setting');
+        // The saved key is not printed in the settings page, so an empty field keeps it (before validate(), which requires a key)
+        if (trim((string)($this->request->post['shipping_econt_delivery_private_key'] ?? '')) === '') {
+            $this->request->post['shipping_econt_delivery_private_key'] = $this->model_setting_setting->getSetting('shipping_econt_delivery')['shipping_econt_delivery_private_key'] ?? '';
+        }
         $json = $this->validate();
         
         if ( empty($json) ) {
