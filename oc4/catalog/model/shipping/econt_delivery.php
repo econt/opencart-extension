@@ -68,6 +68,10 @@ class EcontDelivery extends \Opencart\System\Engine\Model {
      * The Econt form keeps its customer info id when the customer changes the address in it, so the address from the
      * form is in the cache key too, and $fresh asks Econt even if the prices are in the cache.
      *
+     * When Econt does not allow cash on delivery (e.g. above the legal limit for cash payments), the price without it
+     * is kept, shipping_price_cod and shipping_price_cod_e are null and shipment_error_cod has the reason from Econt:
+     * the order is possible only with a payment method without cash on delivery (see getCodError()).
+     *
      * @param array $customerInfo Data from the Econt form
      * @param bool $fresh Ask Econt even if the prices are in the cache
      * @return array|null The data with the server prices, or null if the prices cannot be checked
@@ -95,25 +99,60 @@ class EcontDelivery extends \Opencart\System\Engine\Model {
             }
 
             // Like the Econt form: an order without a total has no cash on delivery
-            $priceCod = $orderTotal > 0 ? $this->getEcontPrice($customerInfoId, $orderTotal, $orderWeight, $currency, true) : $price;
+            $codError = '';
+            $priceCod = $orderTotal > 0 ? $this->getEcontPrice($customerInfoId, $orderTotal, $orderWeight, $currency, true, $codError) : $price;
 
-            if ($priceCod === null) {
-                return null;
+            if ($priceCod === null && $codError === '') {
+                $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
+                $codError = $this->language->get('err_cod_price');
             }
 
-            $prices = ['shipping_price' => $price, 'shipping_price_cod' => $priceCod];
+            $prices = ['shipping_price' => $price, 'shipping_price_cod' => $priceCod, 'cod_error' => $priceCod === null ? $codError : ''];
             $this->session->data['econt_delivery_server_prices'] = [$cacheKey => $prices];
+        }
+
+        $customerInfo['shipping_price'] = $prices['shipping_price'];
+        unset($customerInfo['shipment_error_cod']);
+
+        if ($prices['shipping_price_cod'] === null) {
+            $customerInfo['shipping_price_cod'] = null;
+            $customerInfo['shipping_price_cod_e'] = null;
+            $customerInfo['shipment_error_cod'] = $prices['cod_error'] ?? '';
+
+            return $customerInfo;
         }
 
         $minPrice = min($prices['shipping_price'], $prices['shipping_price_cod']);
         $maxPrice = max($prices['shipping_price'], $prices['shipping_price_cod']);
         $priceCodE = round((float)($customerInfo['shipping_price_cod_e'] ?? $maxPrice), 2);
 
-        $customerInfo['shipping_price'] = $prices['shipping_price'];
         $customerInfo['shipping_price_cod'] = $prices['shipping_price_cod'];
         $customerInfo['shipping_price_cod_e'] = min(max($priceCodE, $minPrice), $maxPrice);
 
         return $customerInfo;
+    }
+
+    /**
+     * Why Econt does not allow cash on delivery (and Econt Pay, which Econt sends with cash on delivery too) for the
+     * data from the Econt form after withServerPrices()
+     *
+     * @param array|null $customerInfo
+     * @param string $paymentCode Payment code without the method ('cod', not 'cod.cod')
+     * @return string Message for the customer, empty if the payment method is possible
+     */
+    public function getCodError(?array $customerInfo, string $paymentCode): string {
+        if (!$customerInfo || !in_array($paymentCode, ['cod', 'econt_payment'], true)) {
+            return '';
+        }
+
+        $this->load->language('extension/econt_delivery_oc4/shipping/econt_delivery');
+        $reason = is_string($customerInfo['shipment_error_cod'] ?? null) ? trim($customerInfo['shipment_error_cod']) : '';
+
+        if ($reason === '' && array_key_exists('shipping_price_cod', $customerInfo) && $customerInfo['shipping_price_cod'] === null) {
+            $reason = $this->language->get('err_cod_price');
+        }
+
+        return $reason === '' ? '' : sprintf($this->language->get('err_cod_not_possible'), $reason);
     }
 
     /**
@@ -136,9 +175,10 @@ class EcontDelivery extends \Opencart\System\Engine\Model {
      * Shipping price (receiverDueAmount) from OrdersService.getPrice. Without an order number Econt calculates it
      * on a temporary order and does not save anything.
      *
+     * @param string $error Set to the message from Econt when there is no price
      * @return float|null Null on a connection error or an error from Econt
      */
-    private function getEcontPrice(string $customerInfoId, float $orderTotal, float $orderWeight, string $currency, bool $cod): ?float {
+    private function getEcontPrice(string $customerInfoId, float $orderTotal, float $orderWeight, string $currency, bool $cod, string &$error = ''): ?float {
         $this->load->model('setting/setting');
         $settings = $this->model_setting_setting->getSetting('shipping_econt_delivery');
 
@@ -178,6 +218,7 @@ class EcontDelivery extends \Opencart\System\Engine\Model {
 
         if ($httpCode !== 200 || !isset($result['receiverDueAmount']) || !is_numeric($result['receiverDueAmount'])) {
             $this->log->write(sprintf('Econt Delivery: getPrice failed [%d] %s %s', $httpCode, $curlError, $result['message'] ?? ''));
+            $error = is_string($result['message'] ?? null) ? trim(strip_tags($result['message'])) : '';
             return null;
         }
 
@@ -209,7 +250,8 @@ class EcontDelivery extends \Opencart\System\Engine\Model {
         // Default shipping price
         $shippingPrice = (float)($customerInfo['shipping_price'] ?? 0);
 
-        // Adjust price based on payment method
+        // Adjust price based on payment method. Without a price with cash on delivery (Econt does not allow it, e.g.
+        // above the legal limit for cash payments) the price without it is shown; the order with it is not confirmed.
         if (isset($this->session->data['payment_method']['code'])) {
             // 'cod' up to OpenCart 4.0.1, 'cod.cod' from 4.0.2
             $paymentCode = explode('.', $this->session->data['payment_method']['code'])[0];

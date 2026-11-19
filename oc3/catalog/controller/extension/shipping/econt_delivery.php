@@ -490,6 +490,20 @@ class ControllerExtensionShippingEcontDelivery extends Controller
                 return true;
             }
 
+            // Econt does not allow cash on delivery for this order (e.g. above the legal limit for cash payments):
+            // the cash on delivery confirm button goes back to the checkout, where the payment step shows why
+            if (($this->request->get['route'] ?? '') === 'extension/payment/cod/confirm') {
+                $this->load->model('extension/shipping/econt_delivery');
+                $codError = $this->model_extension_shipping_econt_delivery->getCodError($this->session->data['econt_delivery']['customer_info'] ?? null, 'cod');
+                if ($codError !== '') {
+                    // The checkout page shows it (e.g. in onestep mode, where the payment step does not say why)
+                    $this->session->data['error'] = $codError;
+                    $this->response->addHeader('Content-Type: application/json');
+                    $this->response->setOutput(json_encode(array('redirect' => $this->url->link('checkout/checkout', '', true))));
+                    return true;
+                }
+            }
+
             $orderId = @intval($this->session->data['order_id']);
 
             if (!$this->isValidCustomerInfo($this->session->data['econt_delivery']['customer_info'] ?? null) || $orderId <= 0) {
@@ -562,13 +576,17 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 
             $this->session->data['econt_delivery']['customer_info'] = $customerInfo;
 
-            $postfix_map = [
-                'cod' => '_cod',
-                'econt_payment' => '_cod_e'
-            ];
+            $paymentCode = is_string($this->request->request['payment_method'] ?? null) ? $this->request->request['payment_method'] : '';
 
-            $cod = @array_key_exists($this->request->request['payment_method'], $postfix_map) ? $postfix_map[$this->request->request['payment_method']] : '';
-            @$this->session->data['shipping_method']['cost'] = $this->session->data['econt_delivery']['customer_info']['shipping_price' . $cod];
+            // Econt does not allow cash on delivery for this order (e.g. above the legal limit for cash payments)
+            $codError = $this->model_extension_shipping_econt_delivery->getCodError($customerInfo, $paymentCode);
+            if ($codError !== '') {
+                $this->response->addHeader('Content-Type: application/json');
+                $this->response->setOutput(json_encode(array('error' => array('warning' => $codError))));
+                return false;
+            }
+
+            @$this->session->data['shipping_method']['cost'] = $this->model_extension_shipping_econt_delivery->getShippingPriceForPayment($customerInfo, $paymentCode);
 
         }
     }
@@ -722,6 +740,11 @@ class ControllerExtensionShippingEcontDelivery extends Controller
             }
         }
 
+        // Without a price with cash on delivery (Econt does not allow it, e.g. above the legal limit for cash payments)
+        if ($shippingCost === null) {
+            $shippingCost = 0;
+        }
+
         if ($shippingCost === 0 && isset($this->session->data['econt_delivery']['customer_info']['shipping_price'])) {
             $shippingCost = $this->session->data['econt_delivery']['customer_info']['shipping_price'];
         }
@@ -784,7 +807,9 @@ class ControllerExtensionShippingEcontDelivery extends Controller
 
         $this->session->data['econt_delivery']['customer_info'] = $checked;
 
+        // A price with cash on delivery that Econt no longer gives (or gives again) is a change too
         return round(floatval($checked['shipping_price']), 2) != round(floatval($customerInfo['shipping_price'] ?? 0), 2)
+            || ($checked['shipping_price_cod'] === null) !== (($customerInfo['shipping_price_cod'] ?? null) === null)
             || round(floatval($checked['shipping_price_cod']), 2) != round(floatval($customerInfo['shipping_price_cod'] ?? 0), 2);
     }
 

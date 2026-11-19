@@ -196,6 +196,10 @@
                     if (json.success) {
                         // Mark address as selected
                         addressSelected = true;
+
+                        // Econt does not allow cash on delivery for this order (e.g. above the legal limit for cash
+                        // payments): the note stays above the payment methods until the next address from the form
+                        showCodError(json.cod_error || '');
                         
                         // Hide iframe container
                         hideIframeContainer();
@@ -245,6 +249,7 @@
                     // Other method selected - hide iframe container
                     console.log('Other method selected, hiding iframe');
                     hideIframeContainer();
+                    showCodError('');
                     // Show the submit button for other shipping methods
                     showShippingSubmitButton();
                 }
@@ -282,6 +287,20 @@
             });
         };
         
+        // Note above the payment methods that cash on delivery and Econt Pay are not possible (empty text removes it)
+        var showCodError = function(message) {
+            $('#econt-cod-error').remove();
+            if (!message) return;
+
+            var note = $('<div id="econt-cod-error" class="alert alert-warning" role="alert"></div>').text(message);
+            var paymentMethod = $('#checkout-payment-method');
+            if (paymentMethod.length) {
+                paymentMethod.before(note);
+            } else {
+                $('#alert').prepend(note);
+            }
+        };
+
         // Show success alert
         var showSuccessAlert = function(message) {
             var alertHtml = '<div class="alert alert-success alert-dismissible">' +

@@ -145,7 +145,9 @@
                         ["customer_post_code", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-postcode']],
                         ["customer_address", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1']],
                         ["customer_address", data['#input-' + ( useShipping ? 'shipping' : 'payment' ) + '-address-1']],
-                        ['ignore_history', true]
+                        ['ignore_history', true],
+                        // the price without cash on delivery and the reason in shipment_error_cod when only cash on delivery is not possible
+                        ['separate_cod_error', 1]
                     ]
 
                     additional.forEach( entry => {
@@ -302,12 +304,15 @@
 
 
                     var labelTxt = {% if not oneStepCheckoutModuleEnabled %} {{ concatenated | json_encode }} {% endif %} + shippingInfo.shipping_price + ' ' + shippingInfo.shipping_price_currency_sign;
-                    if(shippingInfo.shipping_price != shippingInfo.shipping_price_cod) {
+                    // Econt does not allow cash on delivery (e.g. above the legal limit for cash payments): no price with it
+                    if(shippingInfo.shipment_error_cod) {
+                        labelTxt += ' (' + {{ codNotPossibleTxt | json_encode }} + ')'
+                    } else if(shippingInfo.shipping_price != shippingInfo.shipping_price_cod) {
                         labelTxt += ' (+ ' + (shippingInfo.shipping_price_cod - shippingInfo.shipping_price).toFixed(2) + ' ' + shippingInfo.shipping_price_currency_sign + ' ' + {{ deliveryMethodPriceCD | json_encode }} + ')'
                     }
                     
                     {% if is_maza_theme %}
-                        labelTxt = shippingInfo.shipping_price_cod + ' ' + shippingInfo.shipping_price_currency_sign
+                        labelTxt = (shippingInfo.shipping_price_cod != null ? shippingInfo.shipping_price_cod : shippingInfo.shipping_price) + ' ' + shippingInfo.shipping_price_currency_sign
                     {% endif %}
                     
                     $hiddenTextArea.val(JSON.stringify(e.originalEvent.data));
