@@ -56,7 +56,10 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
                 'customer_post_code' => $shippingAddress['postcode'] ?? '',
                 'customer_address' => trim(($shippingAddress['address_1'] ?? '') . ' ' . ($shippingAddress['address_2'] ?? '')),
                 'ignore_history' => true,
-                'default_css' => true
+                'default_css' => true,
+                // When only cash on delivery is not possible (e.g. above the legal limit for cash payments), the Econt
+                // form gives the price without it and the reason in shipment_error_cod, not an error for the whole form
+                'separate_cod_error' => 1
             ];
 
             // Include existing office code if available
@@ -125,6 +128,8 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
             $json['success'] = true;
             $json['customer_info'] = $customerInfo;
             $json['shipping_price'] = $shippingPrice;
+            // Shown in the checkout: cash on delivery and Econt Pay are not possible for this order
+            $json['cod_error'] = $this->model_extension_econt_delivery_oc4_shipping_econt_delivery->getCodError($customerInfo, 'cod');
 
         } catch (\Exception $e) {
             $json['error'] = $e->getMessage();
@@ -227,6 +232,13 @@ class EcontDelivery extends \Opencart\System\Engine\Controller {
             }
 
             $this->session->data['econt_delivery']['customer_info'] = $checked;
+
+            // Econt does not allow cash on delivery for this order (e.g. above the legal limit for cash payments).
+            // Without a payment method OpenCart shows no confirm button; the Econt note in the checkout says why.
+            $paymentCode = explode('.', (string)($this->session->data['payment_method']['code'] ?? ''))[0];
+            if ($this->model_extension_econt_delivery_oc4_shipping_econt_delivery->getCodError($checked, $paymentCode) !== '') {
+                unset($this->session->data['payment_method']);
+            }
         }
 
         $this->refreshShippingCost();

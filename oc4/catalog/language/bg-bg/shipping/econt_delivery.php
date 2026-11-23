@@ -10,6 +10,8 @@ $_['text_select_address_below'] = 'Моля, изберете адрес за д
 // Errors
 $_['error_configuration'] = 'Еконт доставката не е правилно конфигурирана. Моля, свържете се с администратора.';
 $_['err_missing_customer_info'] = 'Моля, изберете адрес за доставка от опциите на Еконт!';
+$_['err_cod_price'] = 'Еконт не изчисли цена с наложен платеж.';
+$_['err_cod_not_possible'] = 'Наложен платеж и Econt Pay не са възможни за тази поръчка: %s Моля, изберете друг начин на плащане.';
 $_['text_catalog_controller_api_extension_econt_delivery_permission_error'] = 'Нямате достъп до ресурса';
 $_['text_catalog_controller_api_extension_econt_delivery_shop_id_error'] = 'Възникана грешка при извличане на "Код за сигурност" от настройките на модула';
 

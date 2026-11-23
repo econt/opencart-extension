@@ -10,6 +10,8 @@ $_['text_select_address_below'] = 'Please select your delivery address below:';
 // Errors
 $_['error_configuration'] = 'Econt Delivery is not properly configured. Please contact the administrator.';
 $_['err_missing_customer_info'] = 'Please select your delivery address from Econt delivery options!';
+$_['err_cod_price'] = 'Econt did not calculate a price with cash on delivery.';
+$_['err_cod_not_possible'] = 'Cash on delivery and Econt Pay are not possible for this order: %s Please choose another payment method.';
 $_['text_catalog_controller_api_extension_econt_delivery_permission_error'] = 'Access Denied!';
 $_['text_catalog_controller_api_extension_econt_delivery_shop_id_error'] = 'Error. Invalid security code!';
 
